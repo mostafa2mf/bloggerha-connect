@@ -50,14 +50,29 @@ const DashExplore = () => {
   const [loading, setLoading] = useState(true);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [hasPendingReview, setHasPendingReview] = useState(false);
 
   const days = useMemo(() => getNext14Days(), []);
   const [selectedDate, setSelectedDate] = useState(days[0].isoDate);
 
   useEffect(() => {
     fetchCampaigns();
-    if (user) fetchMyApplications();
+    if (user) {
+      fetchMyApplications();
+      checkPendingReviews();
+    }
   }, [user]);
+
+  const checkPendingReviews = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('upload_reviews')
+      .select('id')
+      .eq('blogger_id', user.id)
+      .eq('status', 'pending')
+      .limit(1);
+    setHasPendingReview((data || []).length > 0);
+  };
 
   const fetchCampaigns = async () => {
     setLoading(true);
@@ -65,6 +80,7 @@ const DashExplore = () => {
       .from('campaigns')
       .select('*')
       .eq('status', 'active')
+      .eq('admin_approval_status', 'approved')
       .order('created_at', { ascending: false });
     if (!error && data) setCampaigns(data);
     setLoading(false);
@@ -81,6 +97,10 @@ const DashExplore = () => {
 
   const handleApply = async (campaignId: string) => {
     if (!user) { toast.error(lang === 'fa' ? 'ابتدا وارد شوید' : 'Please login first'); return; }
+    if (hasPendingReview) {
+      toast.error(lang === 'fa' ? 'ابتدا بازبینی قبلی باید توسط ادمین تأیید شود' : 'Your previous review must be approved first');
+      return;
+    }
     setApplyingId(campaignId);
     const { error } = await supabase.from('applications').insert({
       campaign_id: campaignId,

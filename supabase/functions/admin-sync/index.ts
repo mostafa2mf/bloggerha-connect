@@ -6,11 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Admin Supabase credentials
+// Admin Supabase (external)
 const ADMIN_URL = "https://iketcqfmrhdpgmbacxpy.supabase.co";
 const ADMIN_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZXRjcWZtcmhkcGdtYmFjeHB5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTU2NzA3MiwiZXhwIjoyMDkxMTQzMDcyfQ.S8x01R0g8cfnukrviwf2AvFh6x3n7aS52qL5GobZDPE";
 
 const adminDb = createClient(ADMIN_URL, ADMIN_SERVICE_KEY);
+
+// Local Supabase (this project)
+const LOCAL_URL = Deno.env.get("SUPABASE_URL")!;
+const LOCAL_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const localDb = createClient(LOCAL_URL, LOCAL_SERVICE_KEY);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -38,14 +43,12 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        // Also create an approval record
-        await adminDb.from("approvals").upsert({
+        await adminDb.from("approvals").insert({
           entity_type: "campaign",
           entity_id: data.id,
           status: "pending",
-        }, { onConflict: "entity_id" }).catch(() => {});
+        }).catch(() => {});
 
-        // Log activity
         await adminDb.from("activity_log").insert({
           type: "campaign_submitted",
           message: `New campaign "${data.title}" submitted for review`,
@@ -78,12 +81,11 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        // Approval record
-        await adminDb.from("approvals").upsert({
+        await adminDb.from("approvals").insert({
           entity_type: "influencer",
           entity_id: data.user_id,
           status: "pending",
-        }, { onConflict: "entity_id" }).catch(() => {});
+        }).catch(() => {});
 
         await adminDb.from("activity_log").insert({
           type: "influencer_registered",
@@ -115,11 +117,11 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        await adminDb.from("approvals").upsert({
+        await adminDb.from("approvals").insert({
           entity_type: "business",
           entity_id: data.user_id,
           status: "pending",
-        }, { onConflict: "entity_id" }).catch(() => {});
+        }).catch(() => {});
 
         await adminDb.from("activity_log").insert({
           type: "business_registered",
@@ -135,7 +137,7 @@ serve(async (req) => {
         });
       }
 
-      // ── Sync application (blogger applies to campaign) ──
+      // ── Sync application ──
       case "sync_application": {
         const { error } = await adminDb.from("campaign_influencers").upsert({
           id: data.id,
@@ -159,7 +161,7 @@ serve(async (req) => {
         });
       }
 
-      // ── Check approval status from admin ──
+      // ── Check approval status from admin & sync back ──
       case "check_approval": {
         const { data: approval, error } = await adminDb
           .from("approvals")
@@ -170,7 +172,63 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        return new Response(JSON.stringify({ approval: approval || { status: "pending" } }), {
+        const status = approval?.status || "pending";
+
+        // Sync approval status back to local DB
+        if (data.entity_type === "influencer" || data.entity_type === "business") {
+          try {
+            await localDb.from("profiles")
+              .update({ approval_status: status })
+              .eq("user_id", data.entity_id);
+          } catch (_) {}
+        } else if (data.entity_type === "campaign") {
+          try {
+            await localDb.from("campaigns")
+              .update({ admin_approval_status: status })
+              .eq("id", data.entity_id);
+          } catch (_) {}
+        }
+
+        // Create notification if status changed to approved or rejected
+        if (status === "approved" || status === "rejected") {
+          const notifTitle = status === "approved"
+            ? (data.entity_type === "campaign" ? "کمپین تأیید شد" : "حساب شما تأیید شد")
+            : (data.entity_type === "campaign" ? "کمپین رد شد" : "حساب شما رد شد");
+          const notifMsg = status === "approved"
+            ? (data.entity_type === "campaign" ? "کمپین شما توسط ادمین تأیید شد و اکنون فعال است" : "حساب شما تأیید شد و اکنون می‌توانید از داشبورد استفاده کنید")
+            : `درخواست شما رد شد. دلیل: ${approval?.reject_reason || "بدون توضیح"}`;
+
+          if (data.user_id) {
+            try {
+              await localDb.from("notifications").insert({
+                user_id: data.user_id,
+                type: status === "approved" ? "approval" : "rejection",
+                title: notifTitle,
+                message: notifMsg,
+                entity_type: data.entity_type,
+                entity_id: data.entity_id,
+              });
+            } catch (_) {}
+          }
+        }
+
+        return new Response(JSON.stringify({ approval: { status, reject_reason: approval?.reject_reason || null } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ── Sync upload review to admin ──
+      case "sync_upload_review": {
+        await adminDb.from("activity_log").insert({
+          type: "review_submitted",
+          message: `Blogger submitted content review for campaign`,
+          message_fa: `بلاگر محتوای بازبینی برای کمپین ارسال کرد`,
+          icon: "image",
+          entity_type: "campaign",
+          entity_id: data.campaign_id,
+        }).catch(() => {});
+
+        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

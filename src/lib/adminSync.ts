@@ -45,10 +45,14 @@ export const syncBusiness = (profile: Record<string, any>) =>
 export const syncApplication = (application: Record<string, any>) =>
   callAdminSync("sync_application", application);
 
-/** Check approval status */
-export const checkApproval = (entityType: string, entityId: string) =>
-  callAdminSync("check_approval", { entity_type: entityType, entity_id: entityId });
+/** Check approval status and sync back */
+export const checkApproval = (entityType: string, entityId: string, userId?: string) =>
+  callAdminSync("check_approval", { entity_type: entityType, entity_id: entityId, user_id: userId });
 
 /** Get categories from admin */
 export const getAdminCategories = () =>
   callAdminSync("get_categories", {});
+
+/** Sync upload review to admin */
+export const syncUploadReview = (review: Record<string, any>) =>
+  callAdminSync("sync_upload_review", review);

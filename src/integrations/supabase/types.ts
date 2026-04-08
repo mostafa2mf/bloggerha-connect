@@ -57,6 +57,7 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          admin_approval_status: string
           applicants_count: number | null
           approved_count: number | null
           budget: string | null
@@ -75,6 +76,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_approval_status?: string
           applicants_count?: number | null
           approved_count?: number | null
           budget?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_approval_status?: string
           applicants_count?: number | null
           approved_count?: number | null
           budget?: string | null
@@ -153,8 +156,45 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          approval_status: string
           avatar_url: string | null
           bio: string | null
           category: string | null
@@ -173,6 +213,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          approval_status?: string
           avatar_url?: string | null
           bio?: string | null
           category?: string | null
@@ -191,6 +232,7 @@ export type Database = {
           username: string
         }
         Update: {
+          approval_status?: string
           avatar_url?: string | null
           bio?: string | null
           category?: string | null
@@ -209,6 +251,47 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      upload_reviews: {
+        Row: {
+          admin_note: string | null
+          blogger_id: string
+          campaign_id: string
+          created_at: string
+          id: string
+          images: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          blogger_id: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          images?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          blogger_id?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          images?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upload_reviews_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
