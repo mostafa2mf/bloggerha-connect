@@ -98,6 +98,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'auth.or': 'یا',
     'auth.noAccount': 'حساب ندارید؟',
     'auth.hasAccount': 'حساب دارید؟',
+    'auth.fillFields': 'لطفاً تمام فیلدها را پر کنید',
     // Admin
     'admin.temp': 'دسترسی موقت',
     'admin.title': 'می‌خواهید وارد کدام داشبورد شوید؟',
