@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Sun, Moon, Globe, Shield } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import AdminEntryModal from './AdminEntryModal';
+import logo from '@/assets/logo.png';
 
 const Header = () => {
   const { t, toggleLang, lang } = useLanguage();
@@ -41,8 +42,9 @@ const Header = () => {
         transition={{ duration: 0.5 }}
       >
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
-          <Link to="/" className="text-xl font-bold gradient-text tracking-tight">
-            Bloggerha
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logo} alt="Bloggerha" className="h-10 w-10 object-contain drop-shadow-[0_0_8px_rgba(218,165,32,0.5)]" style={{ filter: 'drop-shadow(0 0 6px rgba(218,165,32,0.4))' }} />
+            <span className="text-xl font-bold gradient-text tracking-tight">Bloggerha</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

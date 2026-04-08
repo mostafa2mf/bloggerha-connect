@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { X, Users, Building2, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { X, Users, Building2, Mail, Lock, User as UserIcon, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Step = 'selectRole' | 'login' | 'signup';
+type Step = 'selectRole' | 'login';
 
 const UserLoginModal = ({ isOpen, onClose }: Props) => {
   const { t } = useLanguage();
@@ -30,7 +31,33 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
     setStep('login');
   };
 
+  const redirectByRole = async (userRole?: string) => {
+    // If we know the role from selection (signup), use it
+    if (userRole) {
+      navigate(userRole === 'business' ? '/dashboard/business' : '/dashboard');
+      return;
+    }
+    // For login, fetch role from profiles table
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      if (profile?.role === 'business') {
+        navigate('/dashboard/business');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  };
+
   const handleLogin = async () => {
+    if (!email || !password) {
+      toast.error(t('auth.fillFields'));
+      return;
+    }
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
@@ -40,10 +67,14 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
     }
     toast.success(t('auth.loginSuccess'));
     onClose();
-    navigate(role === 'blogger' ? '/dashboard' : '/dashboard');
+    await redirectByRole();
   };
 
   const handleSignup = async () => {
+    if (!email || !password || !username) {
+      toast.error(t('auth.fillFields'));
+      return;
+    }
     setLoading(true);
     const { error } = await signUp(email, password, role, username);
     setLoading(false);
@@ -53,7 +84,7 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
     }
     toast.success(t('auth.signupSuccess'));
     onClose();
-    navigate('/dashboard');
+    await redirectByRole(role);
   };
 
   const resetModal = () => {
@@ -171,9 +202,10 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
                   <button
                     onClick={isSignup ? handleSignup : handleLogin}
                     disabled={loading}
-                    className="w-full gradient-bg text-primary-foreground font-medium py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="w-full gradient-bg text-primary-foreground font-medium py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {loading ? '...' : isSignup ? t('auth.signup') : t('auth.login')}
+                    {loading && <Loader2 size={16} className="animate-spin" />}
+                    {loading ? '' : isSignup ? t('auth.signup') : t('auth.login')}
                   </button>
 
                   <div className="text-center">

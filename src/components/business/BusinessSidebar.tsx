@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Home, Search, Megaphone, FileCheck, MessageCircle, BarChart3, User, Settings, LogOut, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Home, Search, Megaphone, FileCheck, MessageCircle, BarChart3, User, LogOut, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const tabs = [
@@ -24,10 +25,14 @@ interface Props {
 
 const BusinessSidebar = ({ activeTab, onTabChange }: Props) => {
   const { t, lang } = useLanguage();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut();
     toast.success(lang === 'fa' ? 'با موفقیت خارج شدید' : 'Logged out successfully');
     navigate('/');
   };
@@ -63,9 +68,14 @@ const BusinessSidebar = ({ activeTab, onTabChange }: Props) => {
       </div>
 
       <div className="px-2 pb-4 space-y-1">
-        <motion.button whileTap={{ scale: 0.97 }} onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200">
-          <LogOut size={20} className="shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">{t('auth.logout')}</span>}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200 disabled:opacity-50"
+        >
+          {loggingOut ? <Loader2 size={20} className="shrink-0 animate-spin" /> : <LogOut size={20} className="shrink-0" />}
+          {!collapsed && <span className="text-sm font-medium">{loggingOut ? '...' : t('auth.logout')}</span>}
         </motion.button>
         <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center justify-center p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
           <CollapseIcon size={18} />
