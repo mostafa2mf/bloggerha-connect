@@ -97,16 +97,24 @@ const AdminChatPanel = ({ lang }: Props) => {
   const handleSend = async () => {
     if ((!newMsg.trim() && !attachPreview) || !user) return;
     setSending(true);
+    const content = newMsg.trim() || (attachPreview ? `[${attachPreview.type}]` : '');
     const { error } = await supabase.from('messages').insert({
       sender_id: user.id,
       receiver_id: ADMIN_ID,
-      content: newMsg.trim() || (attachPreview ? `[${attachPreview.type}]` : ''),
+      content,
     });
     setSending(false);
     if (error) {
       toast.error(lang === 'fa' ? 'خطا در ارسال پیام' : 'Failed to send');
       return;
     }
+    // Sync to admin dashboard
+    syncChatMessage({
+      sender_id: user.id,
+      sender_name: user.user_metadata?.username || user.email || 'User',
+      sender_role: user.user_metadata?.role === 'business' ? 'business' : 'influencer',
+      content,
+    }).catch(console.error);
     setNewMsg('');
     setAttachPreview(null);
   };
