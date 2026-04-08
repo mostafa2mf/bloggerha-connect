@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Search, Bell, MapPin, ChevronDown } from 'lucide-react';
+import { Search, MapPin, ChevronDown } from 'lucide-react';
+import NotificationBell from '@/components/shared/NotificationBell';
 
 const cities = [
   { name: 'تهران', nameEn: 'Tehran', active: true },
@@ -11,7 +12,11 @@ const cities = [
   { name: 'تبریز', nameEn: 'Tabriz', active: false },
 ];
 
-const DashTopBar = () => {
+interface Props {
+  role?: 'blogger' | 'business';
+}
+
+const DashTopBar = ({ role = 'blogger' }: Props) => {
   const { t, lang } = useLanguage();
   const [cityOpen, setCityOpen] = useState(false);
   const [selectedCity] = useState(cities[0]);
@@ -73,17 +78,11 @@ const DashTopBar = () => {
       </div>
 
       {/* Notifications */}
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        className="relative p-2 rounded-xl glass hover:glow-border transition-all duration-200"
-      >
-        <Bell size={18} />
-        <span className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center font-bold">3</span>
-      </motion.button>
+      <NotificationBell role={role} />
 
       {/* Avatar */}
       <div className="w-9 h-9 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold text-sm">
-        B
+        {role === 'blogger' ? 'B' : 'K'}
       </div>
     </div>
   );
