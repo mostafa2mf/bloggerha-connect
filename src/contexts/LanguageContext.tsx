@@ -321,6 +321,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'dash.searchCampaigns': 'Search campaigns...',
     'dash.confirmAttendance': 'Confirm Attendance',
     'dash.uploadResult': 'Upload Result',
+    'dash.settings': 'Settings',
     'biz.home': 'Home',
     'biz.discover': 'Discover',
     'biz.campaigns': 'Campaigns',
