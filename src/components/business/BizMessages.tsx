@@ -1,9 +1,9 @@
 import { useLanguage } from '@/contexts/LanguageContext';
-import ChatPanel from '@/components/shared/ChatPanel';
+import AdminChatPanel from '@/components/shared/AdminChatPanel';
 
 const BizMessages = () => {
   const { lang } = useLanguage();
-  return <ChatPanel lang={lang} />;
+  return <AdminChatPanel lang={lang} />;
 };
 
 export default BizMessages;

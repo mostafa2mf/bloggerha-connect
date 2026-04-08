@@ -20,9 +20,10 @@ const DashProfile = () => {
   ]);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const MAX_IMAGES = 5;
   const hasUsername = username.trim().length > 0;
   const hasPassword = password.trim().length >= 6;
-  const hasMinImages = images.length >= 4;
+  const hasMinImages = images.length >= MAX_IMAGES;
   const isProfileComplete = hasUsername && hasPassword && hasMinImages;
 
   const healthItems = [
@@ -31,7 +32,7 @@ const DashProfile = () => {
     { label: lang === 'fa' ? 'تصویر پروفایل' : 'Profile Photo', done: true },
     { label: lang === 'fa' ? 'بیوگرافی' : 'Bio', done: bio.trim().length > 0 },
     { label: lang === 'fa' ? 'لینک اینستاگرام' : 'Instagram', done: insta.trim().length > 0 },
-    { label: lang === 'fa' ? `حداقل ۴ تصویر (${images.length}/۴)` : `At least 4 images (${images.length}/4)`, done: hasMinImages },
+    { label: lang === 'fa' ? `${MAX_IMAGES} تصویر گالری (${images.length}/${MAX_IMAGES})` : `${MAX_IMAGES} gallery images (${images.length}/${MAX_IMAGES})`, done: hasMinImages },
   ];
 
   const pct = Math.round((healthItems.filter(p => p.done).length / healthItems.length) * 100);
@@ -39,7 +40,8 @@ const DashProfile = () => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    Array.from(files).forEach(file => {
+    const remaining = MAX_IMAGES - images.length;
+    Array.from(files).slice(0, remaining).forEach(file => {
       const url = URL.createObjectURL(file);
       setImages(prev => [...prev, url]);
     });
@@ -72,7 +74,7 @@ const DashProfile = () => {
               {lang === 'fa' ? 'برای تکمیل حساب، اطلاعات خود را کامل کنید' : 'Complete your profile to unlock full access'}
             </p>
             <p className="text-xs text-amber-400/70 mt-0.5">
-              {lang === 'fa' ? 'نام کاربری، رمز عبور و حداقل ۴ تصویر الزامی است' : 'Username, password, and at least 4 images are required'}
+              {lang === 'fa' ? `نام کاربری، رمز عبور و ${MAX_IMAGES} تصویر الزامی است` : `Username, password, and ${MAX_IMAGES} images are required`}
             </p>
           </div>
         </motion.div>
@@ -122,16 +124,22 @@ const DashProfile = () => {
         <motion.div variants={item} className="glass rounded-3xl p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold">{t('dash.profileHealth')}</h3>
-            <span className="text-sm font-bold text-primary">{pct}%</span>
+            <span className={`text-sm font-bold ${isProfileComplete ? 'text-green-400' : 'text-primary'}`}>{pct}%</span>
           </div>
-          <div className="w-full h-2 rounded-full bg-muted mb-4 overflow-hidden">
+          <div className="w-full h-2.5 rounded-full bg-muted mb-4 overflow-hidden">
             <motion.div
-              className="h-full rounded-full gradient-bg"
+              className={`h-full rounded-full ${isProfileComplete ? 'bg-green-500' : 'gradient-bg'}`}
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
               transition={{ duration: 1, delay: 0.3 }}
             />
           </div>
+          {isProfileComplete && (
+            <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+              <CheckCircle size={16} className="text-green-400" />
+              <span className="text-xs text-green-400 font-medium">{lang === 'fa' ? 'پروفایل کامل است!' : 'Profile complete!'}</span>
+            </div>
+          )}
           <div className="space-y-2">
             {healthItems.map((hi, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
@@ -172,7 +180,6 @@ const DashProfile = () => {
               disabled={!editing}
               className="w-full glass rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60 transition-all"
             />
-            {!hasUsername && <p className="text-[10px] text-orange-400 mt-1">{lang === 'fa' ? 'نام کاربری الزامی است' : 'Username is required'}</p>}
           </div>
 
           <div>
@@ -187,7 +194,6 @@ const DashProfile = () => {
               placeholder={lang === 'fa' ? 'حداقل ۶ کاراکتر' : 'Min 6 characters'}
               className="w-full glass rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60 transition-all"
             />
-            {!hasPassword && <p className="text-[10px] text-orange-400 mt-1">{lang === 'fa' ? 'رمز عبور حداقل ۶ کاراکتر الزامی است' : 'Password min 6 chars required'}</p>}
           </div>
 
           <div>
@@ -214,21 +220,26 @@ const DashProfile = () => {
         </motion.div>
       </div>
 
-      {/* Image Upload Section */}
+      {/* Image Upload Section - 5 images */}
       <motion.div variants={item} className="glass rounded-3xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold flex items-center gap-2">
             <Image size={18} />
-            {lang === 'fa' ? `تصاویر پروفایل (${images.length}/۴)` : `Profile Images (${images.length}/4)`}
+            {lang === 'fa' ? `تصاویر گالری (${images.length}/${MAX_IMAGES})` : `Gallery Images (${images.length}/${MAX_IMAGES})`}
           </h3>
           {!hasMinImages && (
             <span className="text-xs text-orange-400 font-medium">
-              {lang === 'fa' ? `${4 - images.length} تصویر دیگر نیاز است` : `${4 - images.length} more needed`}
+              {lang === 'fa' ? `${MAX_IMAGES - images.length} تصویر دیگر نیاز است` : `${MAX_IMAGES - images.length} more needed`}
+            </span>
+          )}
+          {hasMinImages && (
+            <span className="text-xs text-green-400 font-medium flex items-center gap-1">
+              <CheckCircle size={12} /> {lang === 'fa' ? 'کامل' : 'Complete'}
             </span>
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {images.map((img, i) => (
             <div key={i} className="relative aspect-square rounded-2xl overflow-hidden group">
               <img src={img} alt="" className="w-full h-full object-cover" />
@@ -240,19 +251,21 @@ const DashProfile = () => {
                   <X size={16} />
                 </button>
               </div>
+              <span className="absolute bottom-1.5 start-1.5 text-[9px] font-bold glass rounded-md px-1.5 py-0.5">{i + 1}</span>
             </div>
           ))}
 
-          {images.length < 4 && (
+          {images.length < MAX_IMAGES && Array.from({ length: MAX_IMAGES - images.length }).map((_, i) => (
             <motion.button
+              key={`empty-${i}`}
               whileTap={{ scale: 0.95 }}
               onClick={() => fileRef.current?.click()}
               className="aspect-square rounded-2xl border-2 border-dashed border-primary/30 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/60 hover:text-primary transition-all cursor-pointer"
             >
-              <Upload size={24} />
-              <span className="text-xs font-medium">{lang === 'fa' ? 'آپلود' : 'Upload'}</span>
+              <Upload size={20} />
+              <span className="text-[10px] font-medium">{images.length + i + 1}</span>
             </motion.button>
-          )}
+          ))}
         </div>
 
         <input

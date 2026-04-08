@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, SlidersHorizontal, MapPin, Calendar, Bookmark, TrendingUp, Sparkles, Loader2, FolderOpen, CheckCircle2 } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, Calendar, Bookmark, Sparkles, Loader2, FolderOpen, CheckCircle2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import jalaali from 'jalaali-js';
@@ -14,6 +14,28 @@ function toJalaliStr(dateStr: string) {
   const d = new Date(dateStr);
   const j = jalaali.toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
   return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`;
+}
+
+const persianWeekdays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+const persianWeekdaysShort = ['یک', 'دو', 'سه', 'چهار', 'پنج', 'جمعه', 'شنبه'];
+
+function getNext14Days() {
+  const days = [];
+  const today = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const j = jalaali.toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    days.push({
+      date: d,
+      isoDate: d.toISOString().split('T')[0],
+      jDay: j.jd,
+      jMonth: j.jm,
+      weekday: persianWeekdaysShort[d.getDay()],
+      isToday: i === 0,
+    });
+  }
+  return days;
 }
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
@@ -28,6 +50,9 @@ const DashExplore = () => {
   const [loading, setLoading] = useState(true);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  const days = useMemo(() => getNext14Days(), []);
+  const [selectedDate, setSelectedDate] = useState(days[0].isoDate);
 
   useEffect(() => {
     fetchCampaigns();
@@ -79,6 +104,37 @@ const DashExplore = () => {
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
       <motion.h1 variants={item} className="text-2xl font-bold gradient-text">{t('dash.explore')}</motion.h1>
 
+      {/* Date Rail - 2 week Persian calendar */}
+      <motion.div variants={item} className="glass rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Calendar size={16} className="text-primary" />
+          <span className="text-sm font-bold">{lang === 'fa' ? 'تقویم پیشنهادات' : 'Offer Calendar'}</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+          {days.map((day) => (
+            <motion.button
+              key={day.isoDate}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setSelectedDate(day.isoDate)}
+              className={`flex flex-col items-center min-w-[3.5rem] py-2.5 px-2 rounded-xl transition-all duration-300 ${
+                selectedDate === day.isoDate
+                  ? 'gradient-bg text-primary-foreground shadow-lg shadow-primary/20'
+                  : 'glass hover:glow-border'
+              }`}
+            >
+              <span className="text-[10px] font-medium opacity-70">{day.weekday}</span>
+              <span className="text-lg font-bold mt-0.5">{lang === 'fa' ? day.jDay.toLocaleString('fa-IR') : day.jDay}</span>
+              {day.isToday && (
+                <span className={`text-[8px] font-medium mt-0.5 ${selectedDate === day.isoDate ? 'text-primary-foreground/80' : 'text-primary'}`}>
+                  {lang === 'fa' ? 'امروز' : 'Today'}
+                </span>
+              )}
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Search + Filters */}
       <motion.div variants={item} className="flex gap-2">
         <div className="relative flex-1">
           <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -95,6 +151,7 @@ const DashExplore = () => {
         </motion.button>
       </motion.div>
 
+      {/* Category Chips */}
       <motion.div variants={item} className="flex gap-2 flex-wrap">
         {categories.map(cat => (
           <motion.button
@@ -110,6 +167,7 @@ const DashExplore = () => {
         ))}
       </motion.div>
 
+      {/* Campaign Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map(i => (

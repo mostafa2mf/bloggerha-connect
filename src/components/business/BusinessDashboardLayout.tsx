@@ -28,7 +28,7 @@ const BusinessDashboardLayout = () => {
     <div className="flex min-h-[calc(100vh-4rem)]">
       <BusinessSidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="flex-1 flex flex-col min-w-0">
-        <DashTopBar />
+        <DashTopBar role="business" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-6xl mx-auto">
             {renderTab()}
