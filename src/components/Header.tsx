@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sun, Moon, Globe, LogIn } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import UserLoginModal from './UserLoginModal';
+import { Menu, X, Sun, Moon, Globe, Shield } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import AdminEntryModal from './AdminEntryModal';
 
 const Header = () => {
   const { t, toggleLang, lang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -36,7 +33,7 @@ const Header = () => {
   return (
     <>
       <motion.header
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
           scrolled ? 'glass-strong shadow-sm' : 'bg-transparent'
         }`}
         initial={{ y: -100 }}
@@ -44,58 +41,66 @@ const Header = () => {
         transition={{ duration: 0.5 }}
       >
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
-          <Link to="/" className="text-xl font-bold gradient-text">
+          <Link to="/" className="text-xl font-bold gradient-text tracking-tight">
             Bloggerha
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-1">
             {navItems.map(item => (
               <a
                 key={item.href}
                 href={item.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group"
+                className="text-sm font-medium px-4 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-300 relative group"
               >
                 {item.label}
-                <span className="absolute -bottom-1 start-0 w-0 h-0.5 gradient-bg transition-all duration-300 group-hover:w-full rounded-full" />
+                <span className="absolute bottom-1 inset-x-4 h-0.5 rounded-full gradient-bg scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center" />
               </a>
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-3">
-            <button onClick={toggleLang} className="p-2 rounded-lg hover:bg-muted transition-colors" title="Toggle language">
-              <Globe size={18} />
-            </button>
-            <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-muted transition-colors" title="Toggle theme">
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Language Switcher */}
+            <button
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass text-xs font-bold hover:glow-border transition-all duration-300"
+            >
+              <Globe size={14} />
+              <span>{lang === 'fa' ? 'EN' : 'FA'}</span>
             </button>
 
-            {user ? (
-              <>
-                <Link to="/dashboard" className="text-sm font-medium px-4 py-2 rounded-lg gradient-bg text-primary-foreground hover:opacity-90 transition-opacity">
-                  {t('dash.home')}
-                </Link>
-                <button
-                  onClick={async () => { await signOut(); navigate('/'); }}
-                  className="text-sm font-medium px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+            {/* Theme Switcher */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl glass hover:glow-border transition-all duration-300 relative overflow-hidden"
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isDark ? 'dark' : 'light'}
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  {t('auth.logout')}
-                </button>
-              </>
-            ) : (
+                  {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                </motion.div>
+              </AnimatePresence>
+            </button>
+
+            {!isDashboard && (
               <>
-                <Link to="/register/blogger" className="text-sm font-medium px-4 py-2 rounded-lg gradient-bg text-primary-foreground hover:opacity-90 transition-opacity">
+                <Link to="/register/blogger" className="text-sm font-medium px-4 py-2 rounded-xl gradient-bg text-primary-foreground hover:opacity-90 transition-all duration-300 hover:shadow-lg hover:shadow-primary/20">
                   {t('nav.bloggerLogin')}
                 </Link>
-                <Link to="/register/business" className="text-sm font-medium px-4 py-2 rounded-lg border border-primary/30 text-foreground hover:bg-primary/10 transition-colors">
+                <Link to="/register/business" className="text-sm font-medium px-4 py-2 rounded-xl glass hover:glow-border transition-all duration-300">
                   {t('nav.businessLogin')}
                 </Link>
                 <button
-                  onClick={() => setLoginModalOpen(true)}
-                  className="text-sm font-medium px-4 py-2 rounded-lg glass border border-primary/20 text-primary hover:bg-primary/10 transition-colors flex items-center gap-1.5"
+                  onClick={() => setAdminModalOpen(true)}
+                  className="text-sm font-medium px-4 py-2 rounded-xl glass-gold text-primary hover:glow-gold transition-all duration-300 flex items-center gap-1.5"
                 >
-                  <LogIn size={15} />
-                  {t('nav.userLogin')}
+                  <Shield size={14} />
+                  {t('nav.adminEntry')}
                 </button>
               </>
             )}
@@ -103,14 +108,15 @@ const Header = () => {
 
           {/* Mobile toggle */}
           <div className="flex md:hidden items-center gap-2">
-            <button onClick={toggleLang} className="p-2 rounded-lg hover:bg-muted transition-colors">
-              <Globe size={18} />
+            <button onClick={toggleLang} className="flex items-center gap-1 px-2 py-1.5 rounded-lg glass text-xs font-bold">
+              <Globe size={13} />
+              {lang === 'fa' ? 'EN' : 'FA'}
             </button>
-            <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-muted transition-colors">
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            <button onClick={toggleTheme} className="p-2 rounded-lg glass">
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2">
-              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg glass">
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
@@ -125,43 +131,31 @@ const Header = () => {
             exit={{ opacity: 0, y: -10 }}
             className="fixed inset-x-0 top-16 z-40 glass-strong p-4 md:hidden"
           >
-            <nav className="flex flex-col gap-3">
+            <nav className="flex flex-col gap-2">
               {navItems.map(item => (
                 <a
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
-                  className="text-sm font-medium py-2 px-3 rounded-lg hover:bg-muted transition-colors"
+                  className="text-sm font-medium py-2.5 px-4 rounded-xl hover:bg-muted/50 transition-colors"
                 >
                   {item.label}
                 </a>
               ))}
-              {user ? (
+              {!isDashboard && (
                 <>
-                  <Link to="/dashboard" className="text-sm font-medium py-2 px-3 rounded-lg gradient-bg text-primary-foreground text-center">
-                    {t('dash.home')}
-                  </Link>
-                  <button
-                    onClick={async () => { await signOut(); navigate('/'); setMobileOpen(false); }}
-                    className="text-sm font-medium py-2 px-3 rounded-lg border border-border text-center"
-                  >
-                    {t('auth.logout')}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link to="/register/blogger" className="text-sm font-medium py-2 px-3 rounded-lg gradient-bg text-primary-foreground text-center">
+                  <Link to="/register/blogger" onClick={() => setMobileOpen(false)} className="text-sm font-medium py-2.5 px-4 rounded-xl gradient-bg text-primary-foreground text-center">
                     {t('nav.bloggerLogin')}
                   </Link>
-                  <Link to="/register/business" className="text-sm font-medium py-2 px-3 rounded-lg border border-primary/30 text-center">
+                  <Link to="/register/business" onClick={() => setMobileOpen(false)} className="text-sm font-medium py-2.5 px-4 rounded-xl glass text-center">
                     {t('nav.businessLogin')}
                   </Link>
                   <button
-                    onClick={() => { setLoginModalOpen(true); setMobileOpen(false); }}
-                    className="text-sm font-medium py-2 px-3 rounded-lg glass border border-primary/20 text-primary text-center flex items-center justify-center gap-1.5"
+                    onClick={() => { setAdminModalOpen(true); setMobileOpen(false); }}
+                    className="text-sm font-medium py-2.5 px-4 rounded-xl glass-gold text-primary text-center flex items-center justify-center gap-1.5"
                   >
-                    <LogIn size={15} />
-                    {t('nav.userLogin')}
+                    <Shield size={14} />
+                    {t('nav.adminEntry')}
                   </button>
                 </>
               )}
@@ -170,7 +164,7 @@ const Header = () => {
         )}
       </AnimatePresence>
 
-      <UserLoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+      <AdminEntryModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
     </>
   );
 };
