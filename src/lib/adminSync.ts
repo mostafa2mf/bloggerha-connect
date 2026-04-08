@@ -56,3 +56,11 @@ export const getAdminCategories = () =>
 /** Sync upload review to admin */
 export const syncUploadReview = (review: Record<string, any>) =>
   callAdminSync("sync_upload_review", review);
+
+/** Sync chat message to admin */
+export const syncChatMessage = (msg: Record<string, any>) =>
+  callAdminSync("sync_chat_message", msg);
+
+/** Fetch admin replies */
+export const fetchAdminMessages = (userId: string) =>
+  callAdminSync("fetch_admin_messages", { user_id: userId });

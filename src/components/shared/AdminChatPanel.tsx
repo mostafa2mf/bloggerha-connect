@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { syncChatMessage, fetchAdminMessages } from '@/lib/adminSync';
 import { Send, Loader2, MessageCircle, Check, CheckCheck, Paperclip, Image, Video, Mic, X, AlertCircle, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,6 +41,13 @@ const AdminChatPanel = ({ lang }: Props) => {
   useEffect(() => {
     if (!user) return;
     fetchMessages();
+    // Poll for admin replies every 15s
+    const interval = setInterval(() => {
+      fetchAdminMessages(user.id).then(() => fetchMessages()).catch(console.error);
+    }, 15000);
+    // Initial fetch of admin messages
+    fetchAdminMessages(user.id).catch(console.error);
+    return () => clearInterval(interval);
   }, [user]);
 
   const fetchMessages = async () => {
@@ -89,16 +97,24 @@ const AdminChatPanel = ({ lang }: Props) => {
   const handleSend = async () => {
     if ((!newMsg.trim() && !attachPreview) || !user) return;
     setSending(true);
+    const content = newMsg.trim() || (attachPreview ? `[${attachPreview.type}]` : '');
     const { error } = await supabase.from('messages').insert({
       sender_id: user.id,
       receiver_id: ADMIN_ID,
-      content: newMsg.trim() || (attachPreview ? `[${attachPreview.type}]` : ''),
+      content,
     });
     setSending(false);
     if (error) {
       toast.error(lang === 'fa' ? 'خطا در ارسال پیام' : 'Failed to send');
       return;
     }
+    // Sync to admin dashboard
+    syncChatMessage({
+      sender_id: user.id,
+      sender_name: user.user_metadata?.username || user.email || 'User',
+      sender_role: user.user_metadata?.role === 'business' ? 'business' : 'influencer',
+      content,
+    }).catch(console.error);
     setNewMsg('');
     setAttachPreview(null);
   };
