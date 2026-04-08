@@ -2,35 +2,35 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, X, Check, CheckCheck, MessageCircle, Megaphone, UserCheck, AlertTriangle, Clock, Loader2, Star } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Bell, X, CheckCheck, MessageCircle, Megaphone, UserCheck, AlertTriangle, Clock, Loader2, Star, CheckCircle2, XCircle } from 'lucide-react';
 
 interface Notification {
   id: string;
-  icon: any;
+  type: string;
   title: string;
-  desc: string;
-  time: string;
-  read: boolean;
-  type: 'invite' | 'profile' | 'admin' | 'campaign' | 'reminder' | 'application' | 'review';
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  entity_type?: string;
 }
 
-const bloggerNotifs: Notification[] = [
-  { id: '1', icon: Megaphone, title: 'دعوت جدید', desc: 'برند لوکس شما را به کمپین زیبایی دعوت کرد', time: '۵ دقیقه پیش', read: false, type: 'invite' },
-  { id: '2', icon: AlertTriangle, title: 'پروفایل ناقص', desc: 'برای دریافت دعوت‌ها، پروفایل خود را تکمیل کنید', time: '۱ ساعت پیش', read: false, type: 'profile' },
-  { id: '3', icon: MessageCircle, title: 'پاسخ ادمین', desc: 'ادمین به پیام شما پاسخ داد', time: '۲ ساعت پیش', read: true, type: 'admin' },
-  { id: '4', icon: Star, title: 'بروزرسانی کمپین', desc: 'کمپین «فشن بهاره» وضعیت جدیدی دارد', time: '۳ ساعت پیش', read: true, type: 'campaign' },
-  { id: '5', icon: Clock, title: 'یادآوری', desc: 'مهلت ارسال محتوا فردا به پایان می‌رسد', time: 'دیروز', read: true, type: 'reminder' },
-];
-
-const businessNotifs: Notification[] = [
-  { id: '1', icon: UserCheck, title: 'درخواست جدید', desc: 'سارا احمدی برای کمپین زیبایی درخواست داد', time: '۱۰ دقیقه پیش', read: false, type: 'application' },
-  { id: '2', icon: Megaphone, title: 'بروزرسانی کمپین', desc: 'کمپین «فشن استایل» فعال شد', time: '۳۰ دقیقه پیش', read: false, type: 'campaign' },
-  { id: '3', icon: MessageCircle, title: 'پاسخ ادمین', desc: 'ادمین به درخواست شما پاسخ داد', time: '۱ ساعت پیش', read: true, type: 'admin' },
-  { id: '4', icon: AlertTriangle, title: 'پروفایل ناقص', desc: '۵ تصویر پروفایل آپلود کنید', time: '۲ ساعت پیش', read: false, type: 'profile' },
-  { id: '5', icon: Star, title: 'یادآوری بررسی', desc: '۳ درخواست بلاگر منتظر بررسی هستند', time: 'دیروز', read: true, type: 'review' },
-];
+const typeIcons: Record<string, any> = {
+  approval: CheckCircle2,
+  rejection: XCircle,
+  invite: Megaphone,
+  profile: AlertTriangle,
+  admin: MessageCircle,
+  campaign: Megaphone,
+  reminder: Clock,
+  application: UserCheck,
+  review: Star,
+  info: Bell,
+};
 
 const typeColors: Record<string, string> = {
+  approval: 'bg-green-500/10 text-green-400',
+  rejection: 'bg-red-500/10 text-red-400',
   invite: 'bg-blue-500/10 text-blue-400',
   profile: 'bg-amber-500/10 text-amber-400',
   admin: 'bg-green-500/10 text-green-400',
@@ -38,26 +38,66 @@ const typeColors: Record<string, string> = {
   reminder: 'bg-orange-500/10 text-orange-400',
   application: 'bg-cyan-500/10 text-cyan-400',
   review: 'bg-pink-500/10 text-pink-400',
+  info: 'bg-muted text-muted-foreground',
 };
 
+function timeAgo(dateStr: string, lang: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return lang === 'fa' ? 'الان' : 'Just now';
+  if (mins < 60) return lang === 'fa' ? `${mins} دقیقه پیش` : `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return lang === 'fa' ? `${hrs} ساعت پیش` : `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return lang === 'fa' ? `${days} روز پیش` : `${days}d ago`;
+}
+
 interface NotificationBellProps {
-  role: 'blogger' | 'business';
+  role?: 'blogger' | 'business';
 }
 
 const NotificationBell = ({ role }: NotificationBellProps) => {
   const { lang } = useLanguage();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [notifs, setNotifs] = useState<Notification[]>(role === 'blogger' ? bloggerNotifs : businessNotifs);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const unreadCount = notifs.filter(n => !n.read).length;
-
-  const markAsRead = (id: string) => {
-    setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const fetchNotifications = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setNotifs((data as Notification[]) || []);
+    setLoading(false);
   };
 
-  const markAllRead = () => {
-    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  useEffect(() => {
+    fetchNotifications();
+    // Poll every 30s
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const unreadCount = notifs.filter(n => !n.is_read).length;
+
+  const markAsRead = async (id: string) => {
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+  };
+
+  const markAllRead = async () => {
+    if (!user) return;
+    const unreadIds = notifs.filter(n => !n.is_read).map(n => n.id);
+    if (unreadIds.length === 0) return;
+    for (const id of unreadIds) {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    }
+    setNotifs(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
   return (
@@ -90,7 +130,6 @@ const NotificationBell = ({ role }: NotificationBellProps) => {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="absolute top-full mt-2 end-0 w-80 sm:w-96 glass-strong rounded-2xl shadow-2xl shadow-black/20 z-[100] overflow-hidden border border-border/30"
             >
-              {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-border/30">
                 <h3 className="text-sm font-bold">{lang === 'fa' ? 'اعلان‌ها' : 'Notifications'}</h3>
                 <div className="flex items-center gap-2">
@@ -105,7 +144,6 @@ const NotificationBell = ({ role }: NotificationBellProps) => {
                 </div>
               </div>
 
-              {/* Notifications list */}
               <div className="max-h-96 overflow-y-auto">
                 {loading ? (
                   <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" size={20} /></div>
@@ -115,26 +153,29 @@ const NotificationBell = ({ role }: NotificationBellProps) => {
                     <p className="text-xs text-muted-foreground">{lang === 'fa' ? 'اعلانی ندارید' : 'No notifications'}</p>
                   </div>
                 ) : (
-                  notifs.map((n) => (
-                    <motion.button
-                      key={n.id}
-                      onClick={() => markAsRead(n.id)}
-                      whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                      className={`w-full flex items-start gap-3 p-4 text-start transition-all border-b border-border/10 ${!n.read ? 'bg-primary/5' : ''}`}
-                    >
-                      <div className={`p-2 rounded-xl shrink-0 ${typeColors[n.type]}`}>
-                        <n.icon size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs ${!n.read ? 'font-bold' : 'font-medium'}`}>{n.title}</span>
-                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                  notifs.map((n) => {
+                    const Icon = typeIcons[n.type] || Bell;
+                    return (
+                      <motion.button
+                        key={n.id}
+                        onClick={() => markAsRead(n.id)}
+                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                        className={`w-full flex items-start gap-3 p-4 text-start transition-all border-b border-border/10 ${!n.is_read ? 'bg-primary/5' : ''}`}
+                      >
+                        <div className={`p-2 rounded-xl shrink-0 ${typeColors[n.type] || typeColors.info}`}>
+                          <Icon size={16} />
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.desc}</p>
-                        <span className="text-[10px] text-muted-foreground/60 mt-1 block">{n.time}</span>
-                      </div>
-                    </motion.button>
-                  ))
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs ${!n.is_read ? 'font-bold' : 'font-medium'}`}>{n.title}</span>
+                            {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                          <span className="text-[10px] text-muted-foreground/60 mt-1 block">{timeAgo(n.created_at, lang)}</span>
+                        </div>
+                      </motion.button>
+                    );
+                  })
                 )}
               </div>
             </motion.div>

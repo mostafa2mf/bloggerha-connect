@@ -65,6 +65,7 @@ const DashExplore = () => {
       .from('campaigns')
       .select('*')
       .eq('status', 'active')
+      .eq('admin_approval_status', 'approved')
       .order('created_at', { ascending: false });
     if (!error && data) setCampaigns(data);
     setLoading(false);
