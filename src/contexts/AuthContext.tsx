@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { syncInfluencer, syncBusiness } from '@/lib/adminSync';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -48,13 +49,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, role: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { role, username },
       },
     });
+
+    // Sync profile to admin dashboard after successful signup
+    if (!error && data.user) {
+      const profileData = { user_id: data.user.id, username, display_name: username, email };
+      if (role === 'blogger') {
+        syncInfluencer(profileData).catch(console.error);
+      } else if (role === 'business') {
+        syncBusiness(profileData).catch(console.error);
+      }
+    }
+
     return { error };
   };
 
