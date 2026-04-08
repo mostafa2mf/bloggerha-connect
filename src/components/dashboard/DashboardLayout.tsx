@@ -21,8 +21,10 @@ const DashboardLayout = () => {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    // Check approval status from local profile first, then poll admin
+    if (!user) {
+      setChecking(false);
+      return;
+    }
     const checkStatus = async () => {
       const { data: profile } = await supabase
         .from('profiles')
