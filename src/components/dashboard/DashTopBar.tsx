@@ -22,7 +22,7 @@ const DashTopBar = ({ role = 'blogger' }: Props) => {
   const [selectedCity] = useState(cities[0]);
 
   return (
-    <div className="glass-strong border-b border-border/50 px-6 py-3 flex items-center gap-4">
+    <div className="glass-strong border-b border-border/50 px-6 py-3 flex items-center gap-4 relative z-50">
       {/* Search */}
       <div className="relative flex-1 max-w-md">
         <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
