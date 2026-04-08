@@ -50,6 +50,7 @@ const DashExplore = () => {
   const [loading, setLoading] = useState(true);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [hasPendingReview, setHasPendingReview] = useState(false);
 
   const days = useMemo(() => getNext14Days(), []);
   const [selectedDate, setSelectedDate] = useState(days[0].isoDate);
