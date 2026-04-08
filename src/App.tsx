@@ -9,6 +9,7 @@ import Index from "./pages/Index.tsx";
 import BloggerRegister from "./pages/BloggerRegister.tsx";
 import BusinessRegister from "./pages/BusinessRegister.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
+import BusinessDashboard from "./pages/BusinessDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
                 <Route path="/register/blogger" element={<BloggerRegister />} />
                 <Route path="/register/business" element={<BusinessRegister />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard/business" element={<BusinessDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </TooltipProvider>
