@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { X, Loader2, ImagePlus, MapPin, DollarSign, Calendar, Tag, FileText, Megaphone, Handshake } from 'lucide-react';
 import { toast } from 'sonner';
+import { syncCampaign } from '@/lib/adminSync';
 
 interface Props {
   isOpen: boolean;
@@ -85,6 +86,18 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
       });
 
       if (error) throw error;
+
+      // Sync to admin dashboard
+      syncCampaign({
+        id: crypto.randomUUID(),
+        title: form.title,
+        business_id: user.id,
+        city: form.city,
+        budget: form.budget,
+        description: form.description,
+        start_date: form.start_date,
+        end_date: form.end_date,
+      }).catch(console.error);
 
       toast.success(lang === 'fa' ? 'کمپین با موفقیت ساخته شد' : 'Campaign created successfully');
       onCreated?.();
