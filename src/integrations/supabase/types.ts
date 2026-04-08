@@ -14,7 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          blogger_id: string
+          campaign_id: string
+          compatibility_score: number | null
+          created_at: string
+          id: string
+          message: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          blogger_id: string
+          campaign_id: string
+          compatibility_score?: number | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          blogger_id?: string
+          campaign_id?: string
+          compatibility_score?: number | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          applicants_count: number | null
+          approved_count: number | null
+          budget: string | null
+          business_id: string
+          category: string | null
+          city: string | null
+          collaboration_type: string | null
+          cover_image: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          applicants_count?: number | null
+          approved_count?: number | null
+          budget?: string | null
+          business_id: string
+          category?: string | null
+          city?: string | null
+          collaboration_type?: string | null
+          cover_image?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          applicants_count?: number | null
+          approved_count?: number | null
+          budget?: string | null
+          business_id?: string
+          category?: string | null
+          city?: string | null
+          collaboration_type?: string | null
+          cover_image?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          category: string | null
+          city: string | null
+          created_at: string
+          display_name: string | null
+          engagement_rate: number | null
+          followers_count: number | null
+          id: string
+          images: string[] | null
+          instagram: string | null
+          profile_completion: number | null
+          role: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          display_name?: string | null
+          engagement_rate?: number | null
+          followers_count?: number | null
+          id?: string
+          images?: string[] | null
+          instagram?: string | null
+          profile_completion?: number | null
+          role?: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          display_name?: string | null
+          engagement_rate?: number | null
+          followers_count?: number | null
+          id?: string
+          images?: string[] | null
+          instagram?: string | null
+          profile_completion?: number | null
+          role?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
