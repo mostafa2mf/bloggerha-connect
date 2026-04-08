@@ -115,15 +115,35 @@ const BizCampaigns = () => {
                 {c.cover_image && (
                   <div className="h-32 overflow-hidden relative">
                     <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover" />
-                    <span className={`absolute top-3 start-3 text-[10px] font-medium px-2.5 py-1 rounded-full ${statusBadge[c.status] || statusBadge.draft}`}>
-                      {c.status}
-                    </span>
+                    <div className="absolute top-3 start-3 flex gap-1.5">
+                      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${statusBadge[c.status] || statusBadge.draft}`}>
+                        {c.status}
+                      </span>
+                      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${
+                        c.admin_approval_status === 'approved' ? 'bg-green-500/10 text-green-400' :
+                        c.admin_approval_status === 'rejected' ? 'bg-red-500/10 text-red-400' :
+                        'bg-amber-500/10 text-amber-400'
+                      }`}>
+                        {lang === 'fa'
+                          ? (c.admin_approval_status === 'approved' ? '✓ تأیید ادمین' : c.admin_approval_status === 'rejected' ? '✗ رد شده' : '⏳ در انتظار تأیید')
+                          : (c.admin_approval_status === 'approved' ? '✓ Approved' : c.admin_approval_status === 'rejected' ? '✗ Rejected' : '⏳ Pending')}
+                      </span>
+                    </div>
                   </div>
                 )}
                 {!c.cover_image && (
-                  <div className="px-4 pt-4">
+                  <div className="px-4 pt-4 flex gap-1.5">
                     <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${statusBadge[c.status] || statusBadge.draft}`}>
                       {c.status}
+                    </span>
+                    <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${
+                      c.admin_approval_status === 'approved' ? 'bg-green-500/10 text-green-400' :
+                      c.admin_approval_status === 'rejected' ? 'bg-red-500/10 text-red-400' :
+                      'bg-amber-500/10 text-amber-400'
+                    }`}>
+                      {lang === 'fa'
+                        ? (c.admin_approval_status === 'approved' ? '✓ تأیید ادمین' : c.admin_approval_status === 'rejected' ? '✗ رد شده' : '⏳ در انتظار تأیید')
+                        : (c.admin_approval_status === 'approved' ? '✓ Approved' : c.admin_approval_status === 'rejected' ? '✗ Rejected' : '⏳ Pending')}
                     </span>
                   </div>
                 )}
