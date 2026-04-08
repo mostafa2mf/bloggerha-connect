@@ -2,18 +2,17 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Link } from 'react-router-dom';
-import { Users, Briefcase, Shield, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Users, Briefcase, User, ArrowLeft, ArrowRight } from 'lucide-react';
 import AnimatedCounter from './AnimatedCounter';
-import AdminEntryModal from './AdminEntryModal';
+import UserLoginModal from './UserLoginModal';
 
 const Hero = () => {
   const { t, lang } = useLanguage();
   const Arrow = lang === 'fa' ? ArrowLeft : ArrowRight;
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [userModalOpen, setUserModalOpen] = useState(false);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 start-1/4 w-72 h-72 rounded-full bg-primary/20 blur-[100px] animate-blob" />
         <div className="absolute bottom-1/4 end-1/4 w-96 h-96 rounded-full bg-primary/10 blur-[120px] animate-blob [animation-delay:2s]" />
@@ -72,15 +71,15 @@ const Hero = () => {
             </div>
           </Link>
 
-          <button onClick={() => setAdminModalOpen(true)} className="group w-full sm:w-64 text-start">
+          <button onClick={() => setUserModalOpen(true)} className="group w-full sm:w-64 text-start">
             <div className="glass-gold rounded-3xl p-6 transition-all duration-300 hover:-translate-y-2 hover:glow-gold cursor-pointer animate-float [animation-delay:1s]">
               <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center mb-4">
-                <Shield size={24} className="text-primary" />
+                <User size={24} className="text-primary" />
               </div>
-              <h3 className="text-lg font-bold mb-2">{t('hero.adminCard')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('hero.adminDesc')}</p>
+              <h3 className="text-lg font-bold mb-2">{t('hero.userCard')}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{t('hero.userDesc')}</p>
               <span className="inline-flex items-center gap-2 text-sm font-medium text-primary group-hover:gap-3 transition-all">
-                {t('nav.adminEntry')} <Arrow size={16} />
+                {t('nav.userLogin')} <Arrow size={16} />
               </span>
             </div>
           </button>
@@ -98,7 +97,7 @@ const Hero = () => {
         </motion.div>
       </div>
 
-      <AdminEntryModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      <UserLoginModal isOpen={userModalOpen} onClose={() => setUserModalOpen(false)} />
     </section>
   );
 };
