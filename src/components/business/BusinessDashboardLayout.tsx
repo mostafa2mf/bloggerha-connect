@@ -21,7 +21,10 @@ const BusinessDashboardLayout = () => {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setChecking(false);
+      return;
+    }
     const checkStatus = async () => {
       const { data: profile } = await supabase
         .from('profiles')
