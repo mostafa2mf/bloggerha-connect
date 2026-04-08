@@ -57,8 +57,22 @@ const DashExplore = () => {
 
   useEffect(() => {
     fetchCampaigns();
-    if (user) fetchMyApplications();
+    if (user) {
+      fetchMyApplications();
+      checkPendingReviews();
+    }
   }, [user]);
+
+  const checkPendingReviews = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('upload_reviews')
+      .select('id')
+      .eq('blogger_id', user.id)
+      .eq('status', 'pending')
+      .limit(1);
+    setHasPendingReview((data || []).length > 0);
+  };
 
   const fetchCampaigns = async () => {
     setLoading(true);
