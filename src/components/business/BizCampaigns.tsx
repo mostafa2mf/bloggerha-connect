@@ -19,6 +19,7 @@ type Campaign = {
   approved_count: number | null;
   status: string;
   cover_image: string | null;
+  admin_approval_status: string;
 };
 
 const tabFilters = ['all', 'draft', 'active', 'scheduled', 'completed', 'archived'] as const;
