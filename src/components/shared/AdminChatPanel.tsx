@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { syncChatMessage, fetchAdminMessages } from '@/lib/adminSync';
 import { Send, Loader2, MessageCircle, Check, CheckCheck, Paperclip, Image, Video, Mic, X, AlertCircle, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,6 +41,13 @@ const AdminChatPanel = ({ lang }: Props) => {
   useEffect(() => {
     if (!user) return;
     fetchMessages();
+    // Poll for admin replies every 15s
+    const interval = setInterval(() => {
+      fetchAdminMessages(user.id).then(() => fetchMessages()).catch(console.error);
+    }, 15000);
+    // Initial fetch of admin messages
+    fetchAdminMessages(user.id).catch(console.error);
+    return () => clearInterval(interval);
   }, [user]);
 
   const fetchMessages = async () => {
