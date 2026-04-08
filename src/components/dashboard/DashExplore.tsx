@@ -97,6 +97,10 @@ const DashExplore = () => {
 
   const handleApply = async (campaignId: string) => {
     if (!user) { toast.error(lang === 'fa' ? 'ابتدا وارد شوید' : 'Please login first'); return; }
+    if (hasPendingReview) {
+      toast.error(lang === 'fa' ? 'ابتدا بازبینی قبلی باید توسط ادمین تأیید شود' : 'Your previous review must be approved first');
+      return;
+    }
     setApplyingId(campaignId);
     const { error } = await supabase.from('applications').insert({
       campaign_id: campaignId,
