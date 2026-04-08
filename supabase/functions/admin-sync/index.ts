@@ -176,15 +176,17 @@ serve(async (req) => {
 
         // Sync approval status back to local DB
         if (data.entity_type === "influencer" || data.entity_type === "business") {
-          await localDb.from("profiles")
-            .update({ approval_status: status })
-            .eq("user_id", data.entity_id)
-            .catch(() => {});
+          try {
+            await localDb.from("profiles")
+              .update({ approval_status: status })
+              .eq("user_id", data.entity_id);
+          } catch (_) {}
         } else if (data.entity_type === "campaign") {
-          await localDb.from("campaigns")
-            .update({ admin_approval_status: status })
-            .eq("id", data.entity_id)
-            .catch(() => {});
+          try {
+            await localDb.from("campaigns")
+              .update({ admin_approval_status: status })
+              .eq("id", data.entity_id);
+          } catch (_) {}
         }
 
         // Create notification if status changed to approved or rejected
@@ -197,14 +199,16 @@ serve(async (req) => {
             : `درخواست شما رد شد. دلیل: ${approval?.reject_reason || "بدون توضیح"}`;
 
           if (data.user_id) {
-            await localDb.from("notifications").insert({
-              user_id: data.user_id,
-              type: status === "approved" ? "approval" : "rejection",
-              title: notifTitle,
-              message: notifMsg,
-              entity_type: data.entity_type,
-              entity_id: data.entity_id,
-            }).catch(() => {});
+            try {
+              await localDb.from("notifications").insert({
+                user_id: data.user_id,
+                type: status === "approved" ? "approval" : "rejection",
+                title: notifTitle,
+                message: notifMsg,
+                entity_type: data.entity_type,
+                entity_id: data.entity_id,
+              });
+            } catch (_) {}
           }
         }
 
