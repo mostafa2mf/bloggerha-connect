@@ -1,57 +1,84 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Search, SlidersHorizontal, MapPin, Calendar, Bookmark, TrendingUp, Sparkles } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Search, SlidersHorizontal, MapPin, Calendar, Bookmark, TrendingUp, Sparkles, Loader2, FolderOpen, CheckCircle2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import jalaali from 'jalaali-js';
 
 const categories = ['همه', 'زیبایی', 'مد', 'تکنولوژی', 'غذا', 'سفر', 'ورزش'];
 
-function toJalaliStr(y: number, m: number, d: number) {
-  const j = jalaali.toJalaali(y, m, d);
+function toJalaliStr(dateStr: string) {
+  const d = new Date(dateStr);
+  const j = jalaali.toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
   return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`;
 }
-
-const campaigns = [
-  { title: 'کمپین زیبایی لوکس', brand: 'Glow Beauty', location: 'تهران', date: toJalaliStr(2026, 7, 5), category: 'زیبایی', reward: '۵M', image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=250&fit=crop', tag: 'trending' },
-  { title: 'فشن استریت استایل', brand: 'UrbanWear', location: 'تهران', date: toJalaliStr(2026, 7, 10), category: 'مد', reward: '۳M', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=250&fit=crop', tag: 'new' },
-  { title: 'تکنولوژی آینده', brand: 'TechVision', location: 'تهران', date: toJalaliStr(2026, 7, 15), category: 'تکنولوژی', reward: '۸M', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=250&fit=crop', tag: 'recommended' },
-  { title: 'غذای سالم', brand: 'FreshBite', location: 'تهران', date: toJalaliStr(2026, 8, 1), category: 'غذا', reward: '۲M', image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=250&fit=crop', tag: null },
-];
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const tagColors: Record<string, string> = {
-  trending: 'bg-red-500/10 text-red-400',
-  new: 'bg-green-500/10 text-green-400',
-  recommended: 'bg-purple-500/10 text-purple-400',
-};
-const tagLabels: Record<string, Record<string, string>> = {
-  trending: { fa: 'پرطرفدار', en: 'Trending' },
-  new: { fa: 'جدید', en: 'New' },
-  recommended: { fa: 'پیشنهادی', en: 'Recommended' },
-};
-
-const tagIcons: Record<string, any> = {
-  trending: TrendingUp,
-  new: Sparkles,
-  recommended: Sparkles,
-};
-
 const DashExplore = () => {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
   const [activeCat, setActiveCat] = useState('همه');
   const [searchQuery, setSearchQuery] = useState('');
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCampaigns();
+    if (user) fetchMyApplications();
+  }, [user]);
+
+  const fetchCampaigns = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+    if (!error && data) setCampaigns(data);
+    setLoading(false);
+  };
+
+  const fetchMyApplications = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('applications')
+      .select('campaign_id')
+      .eq('blogger_id', user.id);
+    if (data) setAppliedIds(new Set(data.map(a => a.campaign_id)));
+  };
+
+  const handleApply = async (campaignId: string) => {
+    if (!user) { toast.error(lang === 'fa' ? 'ابتدا وارد شوید' : 'Please login first'); return; }
+    setApplyingId(campaignId);
+    const { error } = await supabase.from('applications').insert({
+      campaign_id: campaignId,
+      blogger_id: user.id,
+      status: 'pending',
+    });
+    if (error) {
+      toast.error(lang === 'fa' ? 'خطا در ارسال درخواست' : 'Error submitting application');
+    } else {
+      toast.success(lang === 'fa' ? 'درخواست همکاری ارسال شد' : 'Application submitted');
+      setAppliedIds(prev => new Set(prev).add(campaignId));
+    }
+    setApplyingId(null);
+  };
 
   const filtered = campaigns
     .filter(c => activeCat === 'همه' || c.category === activeCat)
-    .filter(c => !searchQuery || c.title.includes(searchQuery) || c.brand.toLowerCase().includes(searchQuery.toLowerCase()));
+    .filter(c => !searchQuery || c.title?.includes(searchQuery) || c.description?.includes(searchQuery));
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
       <motion.h1 variants={item} className="text-2xl font-bold gradient-text">{t('dash.explore')}</motion.h1>
 
-      {/* Search + Filters */}
       <motion.div variants={item} className="flex gap-2">
         <div className="relative flex-1">
           <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -68,7 +95,6 @@ const DashExplore = () => {
         </motion.button>
       </motion.div>
 
-      {/* Category Chips */}
       <motion.div variants={item} className="flex gap-2 flex-wrap">
         {categories.map(cat => (
           <motion.button
@@ -84,51 +110,80 @@ const DashExplore = () => {
         ))}
       </motion.div>
 
-      {/* Campaign Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((c, i) => (
-          <motion.div
-            key={i}
-            variants={item}
-            className="glass rounded-3xl overflow-hidden group cursor-pointer hover:glow-border transition-all duration-300"
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="h-40 overflow-hidden relative">
-              <img src={c.image} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              <button className="absolute top-3 end-3 p-2 rounded-xl glass text-foreground/80 hover:text-primary transition-colors">
-                <Bookmark size={16} />
-              </button>
-              {c.tag && (
-                <span className={`absolute top-3 start-3 flex items-center gap-1 text-[10px] font-medium px-2.5 py-1 rounded-full ${tagColors[c.tag]}`}>
-                  {(() => { const Icon = tagIcons[c.tag]; return <Icon size={10} />; })()}
-                  {tagLabels[c.tag][lang]}
-                </span>
-              )}
-            </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold">{c.title}</h3>
-                <span className="text-sm font-bold text-primary">{c.reward} تومان</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">{c.brand}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><MapPin size={12} /> {c.location}</span>
-                  <span className="flex items-center gap-1"><Calendar size={12} /> {c.date}</span>
-                </div>
-                <div className="flex gap-2">
-                  <motion.button whileTap={{ scale: 0.95 }} className="text-xs font-medium glass px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-all">
-                    {lang === 'fa' ? 'مشاهده' : 'View'}
-                  </motion.button>
-                  <motion.button whileTap={{ scale: 0.95 }} className="text-xs font-medium gradient-bg text-primary-foreground px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
-                    {lang === 'fa' ? 'درخواست همکاری' : 'Apply'}
-                  </motion.button>
-                </div>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="glass rounded-3xl overflow-hidden">
+              <Skeleton className="h-40 w-full" />
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-8 w-full" />
               </div>
             </div>
-          </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <motion.div variants={item} className="glass rounded-3xl p-12 text-center">
+          <FolderOpen size={48} className="mx-auto text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-bold mb-2">{lang === 'fa' ? 'کمپینی یافت نشد' : 'No campaigns found'}</h3>
+          <p className="text-sm text-muted-foreground">{lang === 'fa' ? 'در حال حاضر کمپین فعالی وجود ندارد' : 'No active campaigns at the moment'}</p>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filtered.map((c) => {
+            const alreadyApplied = appliedIds.has(c.id);
+            return (
+              <motion.div
+                key={c.id}
+                variants={item}
+                className="glass rounded-3xl overflow-hidden group cursor-pointer hover:glow-border transition-all duration-300"
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="h-40 overflow-hidden relative bg-muted">
+                  {c.cover_image ? (
+                    <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                      <Sparkles size={48} />
+                    </div>
+                  )}
+                  <button className="absolute top-3 end-3 p-2 rounded-xl glass text-foreground/80 hover:text-primary transition-colors">
+                    <Bookmark size={16} />
+                  </button>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold truncate">{c.title}</h3>
+                    {c.budget && <span className="text-sm font-bold text-primary shrink-0">{c.budget} تومان</span>}
+                  </div>
+                  {c.description && <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{c.description}</p>}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      {c.city && <span className="flex items-center gap-1"><MapPin size={12} /> {c.city}</span>}
+                      {c.start_date && <span className="flex items-center gap-1"><Calendar size={12} /> {toJalaliStr(c.start_date)}</span>}
+                    </div>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      disabled={alreadyApplied || applyingId === c.id}
+                      onClick={() => handleApply(c.id)}
+                      className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                        alreadyApplied
+                          ? 'bg-green-500/10 text-green-400 cursor-default'
+                          : 'gradient-bg text-primary-foreground hover:opacity-90'
+                      }`}
+                    >
+                      {applyingId === c.id ? <Loader2 size={12} className="animate-spin" /> :
+                       alreadyApplied ? <><CheckCircle2 size={12} /> {lang === 'fa' ? 'ارسال شده' : 'Applied'}</> :
+                       lang === 'fa' ? 'درخواست همکاری' : 'Apply'}
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </motion.div>
   );
 };
