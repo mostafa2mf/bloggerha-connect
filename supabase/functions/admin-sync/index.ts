@@ -247,6 +247,109 @@ serve(async (req) => {
         });
       }
 
+      // ── Sync chat message to admin conversations/chat_messages ──
+      case "sync_chat_message": {
+        // Ensure conversation exists in admin
+        const participantName = data.sender_name || "User";
+        const participantRole = data.sender_role || "influencer";
+        
+        // Check if conversation exists
+        const { data: existingConv } = await adminDb
+          .from("conversations")
+          .select("id")
+          .eq("participant_entity_id", data.sender_id)
+          .maybeSingle();
+
+        let conversationId = existingConv?.id;
+
+        if (!conversationId) {
+          // Create conversation
+          const { data: newConv, error: convErr } = await adminDb
+            .from("conversations")
+            .insert({
+              participant_name: participantName,
+              participant_role: participantRole,
+              participant_entity_id: data.sender_id,
+              is_online: true,
+              last_message: data.content,
+              unread_count: 1,
+              last_message_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+          
+          if (convErr) throw convErr;
+          conversationId = newConv.id;
+        } else {
+          // Update existing conversation
+          try {
+            await adminDb.from("conversations").update({
+              last_message: data.content,
+              unread_count: 1,
+              last_message_at: new Date().toISOString(),
+            }).eq("id", conversationId);
+          } catch (_) {}
+        }
+
+        // Insert chat message
+        const { error: msgErr } = await adminDb.from("chat_messages").insert({
+          conversation_id: conversationId,
+          sender_role: participantRole,
+          sender_name: participantName,
+          content: data.content,
+          is_read: false,
+        });
+
+        if (msgErr) throw msgErr;
+
+        return new Response(JSON.stringify({ success: true, conversation_id: conversationId }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ── Fetch admin replies (messages FROM admin TO user) ──
+      case "fetch_admin_messages": {
+        // Find conversation for this user
+        const { data: conv } = await adminDb
+          .from("conversations")
+          .select("id")
+          .eq("participant_entity_id", data.user_id)
+          .maybeSingle();
+
+        if (!conv) {
+          return new Response(JSON.stringify({ messages: [] }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get admin messages (sender_role = 'admin')
+        const { data: adminMsgs } = await adminDb
+          .from("chat_messages")
+          .select("*")
+          .eq("conversation_id", conv.id)
+          .eq("sender_role", "admin")
+          .order("created_at", { ascending: true });
+
+        // For each admin message, insert into local messages table if not exists
+        for (const msg of (adminMsgs || [])) {
+          try {
+            await localDb.from("messages").insert({
+              sender_id: "00000000-0000-0000-0000-000000000001",
+              receiver_id: data.user_id,
+              content: msg.content,
+              is_read: false,
+              created_at: msg.created_at,
+            });
+          } catch (_) {
+            // Likely duplicate, ignore
+          }
+        }
+
+        return new Response(JSON.stringify({ messages: adminMsgs || [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,
