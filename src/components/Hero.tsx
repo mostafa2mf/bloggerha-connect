@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Link } from 'react-router-dom';
-import { Users, Briefcase, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Users, Briefcase, LogIn, ArrowLeft, ArrowRight } from 'lucide-react';
 import AnimatedCounter from './AnimatedCounter';
+import UserLoginModal from './UserLoginModal';
 
 const Hero = () => {
   const { t, lang } = useLanguage();
   const Arrow = lang === 'fa' ? ArrowLeft : ArrowRight;
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
@@ -37,14 +40,14 @@ const Hero = () => {
           </motion.p>
         </div>
 
-        {/* CTA Cards */}
+        {/* CTA Cards - 3 cards */}
         <motion.div
-          className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16"
+          className="flex flex-col sm:flex-row gap-5 justify-center items-center mb-16"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.4 }}
         >
-          <Link to="/register/blogger" className="group w-full sm:w-72">
+          <Link to="/register/blogger" className="group w-full sm:w-64">
             <div className="glass rounded-2xl p-6 transition-all duration-300 hover:-translate-y-2 hover:glow-border cursor-pointer animate-float">
               <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center mb-4">
                 <Users size={24} className="text-primary-foreground" />
@@ -57,7 +60,7 @@ const Hero = () => {
             </div>
           </Link>
 
-          <Link to="/register/business" className="group w-full sm:w-72">
+          <Link to="/register/business" className="group w-full sm:w-64">
             <div className="glass rounded-2xl p-6 transition-all duration-300 hover:-translate-y-2 hover:glow-border cursor-pointer animate-float-slow">
               <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center mb-4">
                 <Briefcase size={24} className="text-primary-foreground" />
@@ -69,6 +72,19 @@ const Hero = () => {
               </span>
             </div>
           </Link>
+
+          <button onClick={() => setLoginModalOpen(true)} className="group w-full sm:w-64 text-start">
+            <div className="glass rounded-2xl p-6 transition-all duration-300 hover:-translate-y-2 hover:glow-border cursor-pointer animate-float [animation-delay:1s] border border-primary/10">
+              <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center mb-4">
+                <LogIn size={24} className="text-primary" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">{t('hero.userCard')}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{t('hero.userDesc')}</p>
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-primary group-hover:gap-3 transition-all">
+                {t('nav.userLogin')} <Arrow size={16} />
+              </span>
+            </div>
+          </button>
         </motion.div>
 
         {/* Stats */}
@@ -83,6 +99,8 @@ const Hero = () => {
           <AnimatedCounter end={150000} suffix="+" label={t('stats.campaigns')} display="+150K" />
         </motion.div>
       </div>
+
+      <UserLoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
     </section>
   );
 };
