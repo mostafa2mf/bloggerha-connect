@@ -45,7 +45,6 @@ const Header = () => {
             Bloggerha
           </Link>
 
-          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map(item => (
               <a
@@ -60,7 +59,6 @@ const Header = () => {
           </nav>
 
           <div className="hidden md:flex items-center gap-2">
-            {/* Language Switcher */}
             <button
               onClick={toggleLang}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass text-xs font-bold hover:glow-border transition-all duration-300"
@@ -69,7 +67,6 @@ const Header = () => {
               <span>{lang === 'fa' ? 'EN' : 'FA'}</span>
             </button>
 
-            {/* Theme Switcher */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-xl glass hover:glow-border transition-all duration-300 relative overflow-hidden"
@@ -88,25 +85,16 @@ const Header = () => {
             </button>
 
             {!isDashboard && (
-              <>
-                <Link to="/register/blogger" className="text-sm font-medium px-4 py-2 rounded-xl gradient-bg text-primary-foreground hover:opacity-90 transition-all duration-300 hover:shadow-lg hover:shadow-primary/20">
-                  {t('nav.bloggerLogin')}
-                </Link>
-                <Link to="/register/business" className="text-sm font-medium px-4 py-2 rounded-xl glass hover:glow-border transition-all duration-300">
-                  {t('nav.businessLogin')}
-                </Link>
-                <button
-                  onClick={() => setAdminModalOpen(true)}
-                  className="text-sm font-medium px-4 py-2 rounded-xl glass-gold text-primary hover:glow-gold transition-all duration-300 flex items-center gap-1.5"
-                >
-                  <Shield size={14} />
-                  {t('nav.adminEntry')}
-                </button>
-              </>
+              <button
+                onClick={() => setAdminModalOpen(true)}
+                className="text-sm font-medium px-4 py-2 rounded-xl glass-gold text-primary hover:glow-gold transition-all duration-300 flex items-center gap-1.5"
+              >
+                <Shield size={14} />
+                {t('nav.adminEntry')}
+              </button>
             )}
           </div>
 
-          {/* Mobile toggle */}
           <div className="flex md:hidden items-center gap-2">
             <button onClick={toggleLang} className="flex items-center gap-1 px-2 py-1.5 rounded-lg glass text-xs font-bold">
               <Globe size={13} />
@@ -122,7 +110,6 @@ const Header = () => {
         </div>
       </motion.header>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -133,31 +120,18 @@ const Header = () => {
           >
             <nav className="flex flex-col gap-2">
               {navItems.map(item => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="text-sm font-medium py-2.5 px-4 rounded-xl hover:bg-muted/50 transition-colors"
-                >
+                <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="text-sm font-medium py-2.5 px-4 rounded-xl hover:bg-muted/50 transition-colors">
                   {item.label}
                 </a>
               ))}
               {!isDashboard && (
-                <>
-                  <Link to="/register/blogger" onClick={() => setMobileOpen(false)} className="text-sm font-medium py-2.5 px-4 rounded-xl gradient-bg text-primary-foreground text-center">
-                    {t('nav.bloggerLogin')}
-                  </Link>
-                  <Link to="/register/business" onClick={() => setMobileOpen(false)} className="text-sm font-medium py-2.5 px-4 rounded-xl glass text-center">
-                    {t('nav.businessLogin')}
-                  </Link>
-                  <button
-                    onClick={() => { setAdminModalOpen(true); setMobileOpen(false); }}
-                    className="text-sm font-medium py-2.5 px-4 rounded-xl glass-gold text-primary text-center flex items-center justify-center gap-1.5"
-                  >
-                    <Shield size={14} />
-                    {t('nav.adminEntry')}
-                  </button>
-                </>
+                <button
+                  onClick={() => { setAdminModalOpen(true); setMobileOpen(false); }}
+                  className="text-sm font-medium py-2.5 px-4 rounded-xl glass-gold text-primary text-center flex items-center justify-center gap-1.5"
+                >
+                  <Shield size={14} />
+                  {t('nav.adminEntry')}
+                </button>
               )}
             </nav>
           </motion.div>

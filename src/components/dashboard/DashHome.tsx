@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { MapPin, Clock, Check, X, Eye, Mail, CheckCircle, Star, TrendingUp, Users, Heart, Award, ChevronLeft, ChevronRight, Bookmark, Zap } from 'lucide-react';
+import { MapPin, Clock, Check, X, Eye, Mail, CheckCircle, Star, TrendingUp, Users, Heart, Award, Bookmark, Zap } from 'lucide-react';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -26,136 +26,110 @@ const metrics = [
 ];
 
 const DashHome = () => {
-  const { t, lang } = useLanguage();
-  const Chevron = lang === 'fa' ? ChevronLeft : ChevronRight;
+  const { t } = useLanguage();
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-      {/* Greeting */}
-      <motion.div variants={item} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {t('dash.greeting')} <span className="gradient-text">بلاگر</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('dash.welcomeMsg')}</p>
-        </div>
-        <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold text-sm">
-          B
-        </div>
-      </motion.div>
-
-      {/* Current Invite Card */}
-      <motion.div
-        variants={item}
-        className="relative rounded-3xl overflow-hidden glass-gold p-6"
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
-        <div className="relative z-10">
-          <span className="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-            {t('dash.currentInvite')}
-          </span>
-          <h3 className="text-lg font-bold mt-3 mb-2">کمپین معرفی محصول جدید</h3>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-            <span className="flex items-center gap-1"><Clock size={14} /> ۱۵ تیر ۱۴۰۴</span>
-            <span className="flex items-center gap-1"><MapPin size={14} /> تهران</span>
-          </div>
-          <div className="text-sm font-medium text-primary mb-4">پاداش: ۱۰M تومان</div>
-          <div className="flex gap-3">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="flex-1 gradient-bg text-primary-foreground font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all text-sm shadow-lg shadow-primary/20"
-            >
-              <Check size={16} /> {t('dash.accept')}
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="flex-1 glass font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-destructive/10 hover:text-destructive transition-all text-sm"
-            >
-              <X size={16} /> {t('dash.decline')}
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="px-4 glass font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-muted/50 transition-all text-sm"
-            >
-              <Eye size={16} />
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Quick Status Cards */}
-      <motion.div variants={item} className="grid grid-cols-2 gap-3">
-        {quickStats.map((action, i) => (
-          <motion.button
-            key={i}
-            className={`relative rounded-2xl p-4 overflow-hidden text-start group ${action.color}`}
-            whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.02 }}
-          >
-            <div className="relative z-10">
-              <action.icon size={20} className={`mb-2 ${action.textColor}`} />
-              <div className="text-2xl font-bold">{action.count}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{t(action.key)}</div>
+      {/* Row 1: Welcome + Profile Completion */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <motion.div variants={item} className="lg:col-span-2 relative rounded-3xl overflow-hidden glass-gold p-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+          <div className="relative z-10">
+            <h1 className="text-2xl font-bold mb-1">
+              {t('dash.greeting')} <span className="gradient-text">بلاگر</span>
+            </h1>
+            <p className="text-sm text-muted-foreground mb-4">{t('dash.welcomeMsg')}</p>
+            <span className="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
+              {t('dash.currentInvite')}
+            </span>
+            <h3 className="text-lg font-bold mt-3 mb-2">کمپین معرفی محصول جدید</h3>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+              <span className="flex items-center gap-1"><Clock size={14} /> ۱۴۰۵/۰۱/۱۵</span>
+              <span className="flex items-center gap-1"><MapPin size={14} /> تهران</span>
             </div>
+            <div className="text-sm font-medium text-primary mb-4">پاداش: ۱۰M تومان</div>
+            <div className="flex gap-3">
+              <motion.button whileTap={{ scale: 0.95 }} className="gradient-bg text-primary-foreground font-medium py-2 px-5 rounded-xl flex items-center gap-2 hover:opacity-90 transition-all text-sm shadow-lg shadow-primary/20">
+                <Check size={16} /> {t('dash.accept')}
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} className="glass font-medium py-2 px-5 rounded-xl flex items-center gap-2 hover:bg-destructive/10 hover:text-destructive transition-all text-sm">
+                <X size={16} /> {t('dash.decline')}
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} className="px-4 glass font-medium py-2 rounded-xl flex items-center gap-2 hover:bg-muted/50 transition-all text-sm">
+                <Eye size={16} />
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div variants={item} className="glass rounded-3xl p-5 flex flex-col">
+          <h3 className="font-bold mb-3">{t('dash.profileHealth')}</h3>
+          <div className="w-full h-2 rounded-full bg-muted mb-4 overflow-hidden">
+            <motion.div className="h-full rounded-full gradient-bg" initial={{ width: 0 }} animate={{ width: '67%' }} transition={{ duration: 1, delay: 0.3 }} />
+          </div>
+          <div className="text-3xl font-bold text-primary mb-1">67%</div>
+          <p className="text-xs text-muted-foreground flex-1">برای تکمیل پروفایل نمونه محتوا و مدیا کیت خود را آپلود کنید</p>
+          <motion.button whileTap={{ scale: 0.95 }} className="mt-3 w-full glass rounded-xl py-2 text-sm font-medium hover:glow-border transition-all">
+            {t('dash.editProfile')}
+          </motion.button>
+        </motion.div>
+      </div>
+
+      {/* Row 2: Stats Grid */}
+      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {quickStats.map((s, i) => (
+          <motion.button key={i} className={`relative rounded-2xl p-4 overflow-hidden text-start group ${s.color}`} whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.02 }}>
+            <s.icon size={20} className={`mb-2 ${s.textColor}`} />
+            <div className="text-2xl font-bold">{s.count}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{t(s.key)}</div>
           </motion.button>
         ))}
       </motion.div>
 
-      {/* Performance Snapshot */}
-      <motion.div variants={item}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">{t('dash.performance')}</h2>
-          <TrendingUp size={16} className="text-primary" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {metrics.map((m, i) => (
-            <div key={i} className="glass rounded-2xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <m.icon size={14} className="text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{t(m.key)}</span>
-              </div>
-              <div className="flex items-end gap-2">
-                <span className="text-xl font-bold">{m.value}</span>
-                <span className="text-xs text-green-400 mb-0.5">{m.change}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Featured Campaigns */}
-      <motion.div variants={item}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">{t('dash.featured')}</h2>
-          <Chevron size={16} className="text-muted-foreground" />
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
-          {featured.map((c, i) => (
-            <motion.div
-              key={i}
-              className="flex-shrink-0 w-56 glass rounded-2xl overflow-hidden group cursor-pointer"
-              whileHover={{ y: -4 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="h-32 overflow-hidden relative">
-                <img src={c.image} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <button className="absolute top-2 end-2 p-1.5 rounded-lg glass text-primary-foreground/80 hover:text-primary transition-colors">
-                  <Bookmark size={14} />
-                </button>
-                <span className="absolute bottom-2 start-2 text-[10px] font-medium bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full">{c.category}</span>
-              </div>
-              <div className="p-3">
-                <h3 className="text-sm font-bold truncate">{c.title}</h3>
-                <p className="text-xs text-muted-foreground">{c.brand}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs font-bold text-primary">{c.reward}</span>
-                  <span className="text-[10px] text-muted-foreground">{t('dash.applyNow')}</span>
+      {/* Row 3: Performance + Featured side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <motion.div variants={item}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold">{t('dash.performance')}</h2>
+            <TrendingUp size={16} className="text-primary" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {metrics.map((m, i) => (
+              <div key={i} className="glass rounded-2xl p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <m.icon size={14} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{t(m.key)}</span>
+                </div>
+                <div className="flex items-end gap-2">
+                  <span className="text-xl font-bold">{m.value}</span>
+                  <span className="text-xs text-green-400 mb-0.5">{m.change}</span>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <h2 className="text-lg font-bold mb-3">{t('dash.featured')}</h2>
+          <div className="space-y-3">
+            {featured.map((c, i) => (
+              <motion.div key={i} className="glass rounded-2xl overflow-hidden flex group cursor-pointer hover:glow-border transition-all" whileTap={{ scale: 0.98 }}>
+                <div className="w-24 h-24 shrink-0 overflow-hidden">
+                  <img src={c.image} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                </div>
+                <div className="p-3 flex-1 min-w-0">
+                  <h3 className="text-sm font-bold truncate">{c.title}</h3>
+                  <p className="text-xs text-muted-foreground">{c.brand}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs font-bold text-primary">{c.reward}</span>
+                    <Bookmark size={14} className="text-muted-foreground hover:text-primary cursor-pointer transition-colors" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
