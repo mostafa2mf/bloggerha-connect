@@ -1,0 +1,183 @@
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+
+type Lang = 'fa' | 'en';
+
+interface LanguageContextType {
+  lang: Lang;
+  toggleLang: () => void;
+  t: (key: string) => string;
+  dir: 'rtl' | 'ltr';
+}
+
+const translations: Record<Lang, Record<string, string>> = {
+  fa: {
+    'nav.home': 'خانه',
+    'nav.about': 'درباره ما',
+    'nav.contact': 'تماس',
+    'nav.bloggerLogin': 'ورود بلاگر',
+    'nav.businessLogin': 'ورود بیزینس',
+    'hero.title': 'اتصال هوشمند بلاگرها و برندها',
+    'hero.subtitle': 'همکاری مستقیم، امن، بدون واسطه',
+    'hero.bloggerCard': 'ورود بلاگرها',
+    'hero.businessCard': 'ورود کسب‌وکارها',
+    'hero.bloggerDesc': 'پروفایل بسازید و با برندها همکاری کنید',
+    'hero.businessDesc': 'بلاگر مناسب کمپین خود را پیدا کنید',
+    'stats.users': 'کاربر فعال',
+    'stats.brands': 'برند همکار',
+    'stats.campaigns': 'کمپین موفق',
+    'how.title': 'چطور کار می‌کنه؟',
+    'how.step1.title': 'کشف و انتخاب',
+    'how.step1.desc': 'بلاگرها و برندهای مناسب خود را پیدا کنید',
+    'how.step2.title': 'هماهنگی و همکاری',
+    'how.step2.desc': 'شرایط همکاری را مشخص و توافق کنید',
+    'how.step3.title': 'اجرای کمپین',
+    'how.step3.desc': 'کمپین را اجرا کنید و نتایج را دنبال کنید',
+    'features.title': 'امکانات پلتفرم',
+    'features.security': 'امنیت کامل',
+    'features.securityDesc': 'تمام اطلاعات و تراکنش‌ها با بالاترین سطح امنیتی محافظت می‌شوند',
+    'features.analytics': 'داشبورد تحلیلی',
+    'features.analyticsDesc': 'آمار و تحلیل‌های دقیق از عملکرد کمپین‌ها',
+    'features.directComm': 'ارتباط مستقیم',
+    'features.directCommDesc': 'بدون واسطه، مستقیم با طرف مقابل ارتباط برقرار کنید',
+    'features.profile': 'پروفایل حرفه‌ای',
+    'features.profileDesc': 'پروفایل کامل و حرفه‌ای برای نمایش توانایی‌ها',
+    'about.title': 'درباره بلاگرها',
+    'about.desc': 'بلاگرها یک مارکت‌پلیس هوشمند است که بلاگرها و اینفلوئنسرها را به برندها متصل می‌کند. ما معتقدیم همکاری باید ساده، شفاف و سودمند باشد.',
+    'about.bloggerBenefit': 'برای بلاگرها: درآمدزایی پایدار و دسترسی به برندهای معتبر',
+    'about.brandBenefit': 'برای برندها: دسترسی به شبکه گسترده‌ای از بلاگرهای حرفه‌ای',
+    'contact.title': 'تماس با ما',
+    'contact.name': 'نام',
+    'contact.email': 'ایمیل',
+    'contact.message': 'پیام',
+    'contact.send': 'ارسال پیام',
+    'contact.success': 'پیام شما با موفقیت ارسال شد!',
+    'footer.quickLinks': 'لینک‌های سریع',
+    'footer.contactInfo': 'اطلاعات تماس',
+    'footer.email': 'info@bloggerha.com',
+    'footer.phone': '۰۲۱-۱۲۳۴۵۶۷۸',
+    'footer.address': 'تهران، ایران',
+    'footer.copyright': '© ۱۴۰۴ بلاگرها. تمام حقوق محفوظ است.',
+    'footer.newsletter': 'پیام به ادمین',
+    'footer.newsletterPlaceholder': 'ایمیل خود را وارد کنید',
+    'footer.newsletterSend': 'ارسال',
+    'register.blogger.title': 'ثبت‌نام بلاگر',
+    'register.business.title': 'ثبت‌نام کسب‌وکار',
+    'register.name': 'نام کامل',
+    'register.email': 'ایمیل',
+    'register.phone': 'شماره تلفن',
+    'register.password': 'رمز عبور',
+    'register.description': 'درباره خودتان',
+    'register.instagram': 'لینک اینستاگرام',
+    'register.category': 'دسته‌بندی',
+    'register.submit': 'ثبت‌نام',
+    'register.back': 'بازگشت',
+    'register.success': 'ثبت‌نام با موفقیت انجام شد!',
+    'register.categories.lifestyle': 'سبک زندگی',
+    'register.categories.tech': 'تکنولوژی',
+    'register.categories.food': 'غذا و آشپزی',
+    'register.categories.fashion': 'مد و فشن',
+    'register.categories.travel': 'سفر و گردشگری',
+    'register.categories.beauty': 'زیبایی و آرایشی',
+  },
+  en: {
+    'nav.home': 'Home',
+    'nav.about': 'About',
+    'nav.contact': 'Contact',
+    'nav.bloggerLogin': 'Blogger Login',
+    'nav.businessLogin': 'Business Login',
+    'hero.title': 'Smart Connection Between Bloggers & Brands',
+    'hero.subtitle': 'Direct, secure, no middleman collaboration',
+    'hero.bloggerCard': 'Blogger Login',
+    'hero.businessCard': 'Business Login',
+    'hero.bloggerDesc': 'Create your profile and collaborate with brands',
+    'hero.businessDesc': 'Find the right blogger for your campaign',
+    'stats.users': 'Active Users',
+    'stats.brands': 'Partner Brands',
+    'stats.campaigns': 'Successful Campaigns',
+    'how.title': 'How It Works',
+    'how.step1.title': 'Discover & Select',
+    'how.step1.desc': 'Find the right bloggers and brands for you',
+    'how.step2.title': 'Coordinate & Collaborate',
+    'how.step2.desc': 'Define terms and reach an agreement',
+    'how.step3.title': 'Run Campaign',
+    'how.step3.desc': 'Execute and track your campaign results',
+    'features.title': 'Platform Features',
+    'features.security': 'Full Security',
+    'features.securityDesc': 'All data and transactions protected at the highest level',
+    'features.analytics': 'Analytics Dashboard',
+    'features.analyticsDesc': 'Precise stats and analytics for your campaigns',
+    'features.directComm': 'Direct Communication',
+    'features.directCommDesc': 'Connect directly with no middleman',
+    'features.profile': 'Professional Profile',
+    'features.profileDesc': 'Complete professional profile to showcase abilities',
+    'about.title': 'About Bloggerha',
+    'about.desc': 'Bloggerha is a smart marketplace connecting bloggers and influencers with brands. We believe collaboration should be simple, transparent, and beneficial.',
+    'about.bloggerBenefit': 'For Bloggers: Sustainable income and access to trusted brands',
+    'about.brandBenefit': 'For Brands: Access to a vast network of professional bloggers',
+    'contact.title': 'Contact Us',
+    'contact.name': 'Name',
+    'contact.email': 'Email',
+    'contact.message': 'Message',
+    'contact.send': 'Send Message',
+    'contact.success': 'Your message was sent successfully!',
+    'footer.quickLinks': 'Quick Links',
+    'footer.contactInfo': 'Contact Info',
+    'footer.email': 'info@bloggerha.com',
+    'footer.phone': '+98-21-12345678',
+    'footer.address': 'Tehran, Iran',
+    'footer.copyright': '© 2025 Bloggerha. All rights reserved.',
+    'footer.newsletter': 'Message Admin',
+    'footer.newsletterPlaceholder': 'Enter your email',
+    'footer.newsletterSend': 'Send',
+    'register.blogger.title': 'Blogger Registration',
+    'register.business.title': 'Business Registration',
+    'register.name': 'Full Name',
+    'register.email': 'Email',
+    'register.phone': 'Phone Number',
+    'register.password': 'Password',
+    'register.description': 'About You',
+    'register.instagram': 'Instagram Link',
+    'register.category': 'Category',
+    'register.submit': 'Register',
+    'register.back': 'Back',
+    'register.success': 'Registration successful!',
+    'register.categories.lifestyle': 'Lifestyle',
+    'register.categories.tech': 'Technology',
+    'register.categories.food': 'Food & Cooking',
+    'register.categories.fashion': 'Fashion',
+    'register.categories.travel': 'Travel',
+    'register.categories.beauty': 'Beauty & Cosmetics',
+  },
+};
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [lang, setLang] = useState<Lang>('fa');
+  const dir = lang === 'fa' ? 'rtl' : 'ltr';
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = dir;
+  }, [lang, dir]);
+
+  const toggleLang = useCallback(() => {
+    setLang(prev => prev === 'fa' ? 'en' : 'fa');
+  }, []);
+
+  const t = useCallback((key: string) => {
+    return translations[lang][key] || key;
+  }, [lang]);
+
+  return (
+    <LanguageContext.Provider value={{ lang, toggleLang, t, dir }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+export const useLanguage = () => {
+  const ctx = useContext(LanguageContext);
+  if (!ctx) throw new Error('useLanguage must be inside LanguageProvider');
+  return ctx;
+};
