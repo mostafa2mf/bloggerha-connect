@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sun, Moon, Globe } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, Sun, Moon, Globe, LogIn } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import UserLoginModal from './UserLoginModal';
 
 const Header = () => {
   const { t, toggleLang, lang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -20,7 +25,9 @@ const Header = () => {
 
   useEffect(() => setMobileOpen(false), [location]);
 
-  const navItems = [
+  const isDashboard = location.pathname.startsWith('/dashboard');
+
+  const navItems = isDashboard ? [] : [
     { label: t('nav.home'), href: '/' },
     { label: t('nav.about'), href: '/#about' },
     { label: t('nav.contact'), href: '/#contact' },
@@ -62,12 +69,36 @@ const Header = () => {
             <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-muted transition-colors" title="Toggle theme">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <Link to="/register/blogger" className="text-sm font-medium px-4 py-2 rounded-lg gradient-bg text-primary-foreground hover:opacity-90 transition-opacity">
-              {t('nav.bloggerLogin')}
-            </Link>
-            <Link to="/register/business" className="text-sm font-medium px-4 py-2 rounded-lg border border-primary/30 text-foreground hover:bg-primary/10 transition-colors">
-              {t('nav.businessLogin')}
-            </Link>
+
+            {user ? (
+              <>
+                <Link to="/dashboard" className="text-sm font-medium px-4 py-2 rounded-lg gradient-bg text-primary-foreground hover:opacity-90 transition-opacity">
+                  {t('dash.home')}
+                </Link>
+                <button
+                  onClick={async () => { await signOut(); navigate('/'); }}
+                  className="text-sm font-medium px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+                >
+                  {t('auth.logout')}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/register/blogger" className="text-sm font-medium px-4 py-2 rounded-lg gradient-bg text-primary-foreground hover:opacity-90 transition-opacity">
+                  {t('nav.bloggerLogin')}
+                </Link>
+                <Link to="/register/business" className="text-sm font-medium px-4 py-2 rounded-lg border border-primary/30 text-foreground hover:bg-primary/10 transition-colors">
+                  {t('nav.businessLogin')}
+                </Link>
+                <button
+                  onClick={() => setLoginModalOpen(true)}
+                  className="text-sm font-medium px-4 py-2 rounded-lg glass border border-primary/20 text-primary hover:bg-primary/10 transition-colors flex items-center gap-1.5"
+                >
+                  <LogIn size={15} />
+                  {t('nav.userLogin')}
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile toggle */}
@@ -105,16 +136,41 @@ const Header = () => {
                   {item.label}
                 </a>
               ))}
-              <Link to="/register/blogger" className="text-sm font-medium py-2 px-3 rounded-lg gradient-bg text-primary-foreground text-center">
-                {t('nav.bloggerLogin')}
-              </Link>
-              <Link to="/register/business" className="text-sm font-medium py-2 px-3 rounded-lg border border-primary/30 text-center">
-                {t('nav.businessLogin')}
-              </Link>
+              {user ? (
+                <>
+                  <Link to="/dashboard" className="text-sm font-medium py-2 px-3 rounded-lg gradient-bg text-primary-foreground text-center">
+                    {t('dash.home')}
+                  </Link>
+                  <button
+                    onClick={async () => { await signOut(); navigate('/'); setMobileOpen(false); }}
+                    className="text-sm font-medium py-2 px-3 rounded-lg border border-border text-center"
+                  >
+                    {t('auth.logout')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/register/blogger" className="text-sm font-medium py-2 px-3 rounded-lg gradient-bg text-primary-foreground text-center">
+                    {t('nav.bloggerLogin')}
+                  </Link>
+                  <Link to="/register/business" className="text-sm font-medium py-2 px-3 rounded-lg border border-primary/30 text-center">
+                    {t('nav.businessLogin')}
+                  </Link>
+                  <button
+                    onClick={() => { setLoginModalOpen(true); setMobileOpen(false); }}
+                    className="text-sm font-medium py-2 px-3 rounded-lg glass border border-primary/20 text-primary text-center flex items-center justify-center gap-1.5"
+                  >
+                    <LogIn size={15} />
+                    {t('nav.userLogin')}
+                  </button>
+                </>
+              )}
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <UserLoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
     </>
   );
 };
