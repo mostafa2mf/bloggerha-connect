@@ -55,7 +55,7 @@ const AdminEntryModal = ({ isOpen, onClose }: Props) => {
 
               <div className="space-y-3">
                 <motion.button
-                  onClick={() => goTo('/dashboard')}
+                  onClick={() => goTo('/dashboard?admin_preview=true')}
                   className="w-full flex items-center gap-4 p-4 rounded-2xl glass hover:glow-border-gold transition-all duration-300 group text-start"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
@@ -70,7 +70,7 @@ const AdminEntryModal = ({ isOpen, onClose }: Props) => {
                 </motion.button>
 
                 <motion.button
-                  onClick={() => goTo('/dashboard/business')}
+                  onClick={() => goTo('/dashboard/business?admin_preview=true')}
                   className="w-full flex items-center gap-4 p-4 rounded-2xl glass hover:glow-border-gold transition-all duration-300 group text-start"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
