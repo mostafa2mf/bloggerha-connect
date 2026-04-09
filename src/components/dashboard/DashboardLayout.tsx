@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { checkApproval } from '@/lib/adminSync';
+import { useSearchParams } from 'react-router-dom';
 import DashboardSidebar, { type BloggerTabId } from './DashboardSidebar';
 import DashTopBar from './DashTopBar';
 import DashHome from './DashHome';
@@ -17,8 +18,10 @@ import { Loader2 } from 'lucide-react';
 const DashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<BloggerTabId>('home');
   const { user } = useAuth();
-  const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [searchParams] = useSearchParams();
+  const isAdminPreview = searchParams.get('admin_preview') === 'true';
+  const [approvalStatus, setApprovalStatus] = useState<string | null>(isAdminPreview ? 'approved' : null);
+  const [checking, setChecking] = useState(!isAdminPreview);
 
   useEffect(() => {
     if (!user) {
