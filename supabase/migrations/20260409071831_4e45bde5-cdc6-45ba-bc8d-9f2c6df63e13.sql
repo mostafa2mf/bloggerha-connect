@@ -1,0 +1,1 @@
+UPDATE profiles SET approval_status = 'approved' WHERE username = 'testblogger1';
