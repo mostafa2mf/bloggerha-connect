@@ -1,98 +1,135 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { TrendingUp, Users, Eye, CheckCircle, BarChart3, Award } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Users, Megaphone, CalendarCheck, Loader2 } from 'lucide-react';
 
-const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const metrics = [
-  { key: 'biz.totalReach', value: '۲.۵M', icon: Eye, change: '+۱۲%' },
-  { key: 'biz.responseRate', value: '۷۸%', icon: TrendingUp, change: '+۵%' },
-  { key: 'biz.acceptanceRate', value: '۶۵%', icon: CheckCircle, change: '+۳%' },
-  { key: 'biz.completionRate', value: '۹۲%', icon: Award, change: '+۲%' },
-];
-
-const topCategories = [
-  { name: 'زیبایی', campaigns: 8, reach: '۸۵۰K', pct: 85 },
-  { name: 'مد', campaigns: 5, reach: '۶۲۰K', pct: 62 },
-  { name: 'تکنولوژی', campaigns: 3, reach: '۴۵۰K', pct: 45 },
-  { name: 'غذا', campaigns: 2, reach: '۲۸۰K', pct: 28 },
-];
-
-const topBloggers = [
-  { name: 'مینا فشن', performance: '۹۸%', campaigns: 5, avatar: 'م' },
-  { name: 'سارا احمدی', performance: '۹۵%', campaigns: 4, avatar: 'S' },
-  { name: 'علی تکنولوژی', performance: '۹۱%', campaigns: 3, avatar: 'ع' },
-];
-
 const BizAnalytics = () => {
-  const { t } = useLanguage();
+  const { lang } = useLanguage();
+  const { user } = useAuth();
+  const [stats, setStats] = useState({ visitors: 0, futureGuests: 0, activeCampaigns: 0 });
+  const [loading, setLoading] = useState(true);
+  const [recentCampaigns, setRecentCampaigns] = useState<{ title: string; status: string; applicants_count: number | null }[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetch = async () => {
+      setLoading(true);
+
+      // Active campaigns
+      const { data: campaigns } = await supabase
+        .from('campaigns')
+        .select('id, title, status, applicants_count')
+        .eq('business_id', user.id);
+
+      const activeCampaigns = (campaigns || []).filter(c => c.status === 'active').length;
+
+      // Total applicants (visitors)
+      const campaignIds = (campaigns || []).map(c => c.id);
+      let visitors = 0;
+      let futureGuests = 0;
+
+      if (campaignIds.length > 0) {
+        const { count: appCount } = await supabase
+          .from('applications')
+          .select('*', { count: 'exact', head: true })
+          .in('campaign_id', campaignIds);
+        visitors = appCount || 0;
+
+        const { count: acceptedCount } = await supabase
+          .from('applications')
+          .select('*', { count: 'exact', head: true })
+          .in('campaign_id', campaignIds)
+          .eq('status', 'accepted');
+        futureGuests = acceptedCount || 0;
+      }
+
+      setStats({ visitors, futureGuests, activeCampaigns });
+      setRecentCampaigns((campaigns || []).slice(0, 5).map(c => ({
+        title: c.title,
+        status: c.status,
+        applicants_count: c.applicants_count,
+      })));
+      setLoading(false);
+    };
+    fetch();
+  }, [user]);
+
+  const statCards = [
+    { label: lang === 'fa' ? 'تعداد بازدیدکنندگان' : 'Total Visitors', value: stats.visitors, icon: Users, color: 'text-blue-400' },
+    { label: lang === 'fa' ? 'مهمان‌های آینده' : 'Future Guests', value: stats.futureGuests, icon: CalendarCheck, color: 'text-green-400' },
+    { label: lang === 'fa' ? 'کمپین‌های فعال' : 'Active Campaigns', value: stats.activeCampaigns, icon: Megaphone, color: 'text-purple-400' },
+  ];
+
+  const statusLabel = (s: string) => {
+    const map: Record<string, string> = {
+      active: lang === 'fa' ? 'فعال' : 'Active',
+      draft: lang === 'fa' ? 'پیش‌نویس' : 'Draft',
+      completed: lang === 'fa' ? 'تمام شده' : 'Completed',
+      scheduled: lang === 'fa' ? 'زمان‌بندی' : 'Scheduled',
+    };
+    return map[s] || s;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 size={28} className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-      <motion.div variants={item} className="flex items-center gap-2">
-        <BarChart3 size={20} className="text-primary" />
-        <h1 className="text-2xl font-bold gradient-text">{t('biz.analytics')}</h1>
-      </motion.div>
+      <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
+        {lang === 'fa' ? 'آمار' : 'Analytics'}
+      </motion.h1>
 
-      {/* Key Metrics */}
-      <motion.div variants={item} className="grid grid-cols-2 gap-3">
-        {metrics.map((m, i) => (
-          <div key={i} className="glass rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <m.icon size={16} className="text-primary" />
-              <span className="text-xs text-muted-foreground">{t(m.key)}</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="text-2xl font-bold">{m.value}</span>
-              <span className="text-xs text-green-400 mb-1">{m.change}</span>
-            </div>
+      {/* Stat Cards */}
+      <motion.div variants={item} className="grid grid-cols-3 gap-4">
+        {statCards.map((s, i) => (
+          <div key={i} className="glass rounded-3xl p-5 text-center border border-primary/10 shadow-lg shadow-primary/5">
+            <s.icon size={28} className={`mx-auto mb-3 ${s.color}`} />
+            <div className="text-3xl font-extrabold">{s.value.toLocaleString('fa-IR')}</div>
+            <div className="text-xs text-muted-foreground mt-1 font-medium">{s.label}</div>
           </div>
         ))}
       </motion.div>
 
-      {/* Top Categories */}
-      <motion.div variants={item} className="glass rounded-3xl p-5">
-        <h2 className="font-bold mb-4">{t('biz.topCategories')}</h2>
-        <div className="space-y-3">
-          {topCategories.map((c, i) => (
-            <div key={i}>
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="font-medium">{c.name}</span>
-                <span className="text-xs text-muted-foreground">{c.campaigns} کمپین · {c.reach}</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full gradient-bg"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${c.pct}%` }}
-                  transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Top Bloggers */}
-      <motion.div variants={item} className="glass rounded-3xl p-5">
-        <h2 className="font-bold mb-4">{t('biz.topBloggers')}</h2>
-        <div className="space-y-3">
-          {topBloggers.map((b, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <span className="text-sm font-bold text-muted-foreground w-5">{i + 1}</span>
-              <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center font-bold text-primary-foreground text-sm">
-                {b.avatar}
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium">{b.name}</div>
-                <div className="text-[10px] text-muted-foreground">{b.campaigns} همکاری</div>
-              </div>
-              <span className="text-sm font-bold text-primary">{b.performance}</span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
+      {/* Campaigns Table */}
+      {recentCampaigns.length > 0 && (
+        <motion.div variants={item} className="glass rounded-3xl p-5 border border-primary/10">
+          <h2 className="font-extrabold mb-4">{lang === 'fa' ? 'کمپین‌های اخیر' : 'Recent Campaigns'}</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-start py-2 text-xs text-muted-foreground font-bold">{lang === 'fa' ? 'عنوان' : 'Title'}</th>
+                  <th className="text-center py-2 text-xs text-muted-foreground font-bold">{lang === 'fa' ? 'وضعیت' : 'Status'}</th>
+                  <th className="text-center py-2 text-xs text-muted-foreground font-bold">{lang === 'fa' ? 'درخواست‌ها' : 'Applicants'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentCampaigns.map((c, i) => (
+                  <tr key={i} className="border-b border-border/20 last:border-0">
+                    <td className="py-3 font-medium">{c.title}</td>
+                    <td className="py-3 text-center">
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                        {statusLabel(c.status)}
+                      </span>
+                    </td>
+                    <td className="py-3 text-center font-bold">{c.applicants_count ?? 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

@@ -3,17 +3,17 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Home, Search, Megaphone, FileCheck, MessageCircle, BarChart3, User, LogOut, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import { Home, Eye, Megaphone, Users, MessageCircle, BarChart3, User, LogOut, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const tabs = [
-  { id: 'home', icon: Home, key: 'biz.home' },
-  { id: 'discover', icon: Search, key: 'biz.discover' },
-  { id: 'campaigns', icon: Megaphone, key: 'biz.campaigns' },
-  { id: 'applications', icon: FileCheck, key: 'biz.applications' },
-  { id: 'messages', icon: MessageCircle, key: 'biz.messages' },
-  { id: 'analytics', icon: BarChart3, key: 'biz.analytics' },
-  { id: 'profile', icon: User, key: 'biz.profile' },
+  { id: 'home', icon: Home, labelFa: 'خانه', labelEn: 'Home' },
+  { id: 'discover', icon: Eye, labelFa: 'بازدید بلاگرها', labelEn: 'Browse Bloggers' },
+  { id: 'campaigns', icon: Megaphone, labelFa: 'کمپین‌ها', labelEn: 'Campaigns' },
+  { id: 'applications', icon: Users, labelFa: 'مهمان‌ها', labelEn: 'Guests' },
+  { id: 'messages', icon: MessageCircle, labelFa: 'پیام‌ها', labelEn: 'Messages' },
+  { id: 'analytics', icon: BarChart3, labelFa: 'آمار', labelEn: 'Analytics' },
+  { id: 'profile', icon: User, labelFa: 'پروفایل', labelEn: 'Profile' },
 ] as const;
 
 export type BizTabId = typeof tabs[number]['id'];
@@ -24,7 +24,7 @@ interface Props {
 }
 
 const BusinessSidebar = ({ activeTab, onTabChange }: Props) => {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -48,6 +48,7 @@ const BusinessSidebar = ({ activeTab, onTabChange }: Props) => {
       <div className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
         {tabs.map(tab => {
           const isActive = activeTab === tab.id;
+          const label = lang === 'fa' ? tab.labelFa : tab.labelEn;
           return (
             <motion.button
               key={tab.id}
@@ -61,7 +62,7 @@ const BusinessSidebar = ({ activeTab, onTabChange }: Props) => {
                 <motion.div layoutId="bizSidebarActive" className="absolute inset-y-1 start-0 w-1 rounded-full gradient-bg" transition={{ type: 'spring', stiffness: 300, damping: 25 }} />
               )}
               <tab.icon size={20} className="shrink-0" />
-              {!collapsed && <span className="text-sm font-medium truncate">{t(tab.key)}</span>}
+              {!collapsed && <span className="text-sm font-medium truncate">{label}</span>}
             </motion.button>
           );
         })}
@@ -75,7 +76,7 @@ const BusinessSidebar = ({ activeTab, onTabChange }: Props) => {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200 disabled:opacity-50"
         >
           {loggingOut ? <Loader2 size={20} className="shrink-0 animate-spin" /> : <LogOut size={20} className="shrink-0" />}
-          {!collapsed && <span className="text-sm font-medium">{loggingOut ? '...' : t('auth.logout')}</span>}
+          {!collapsed && <span className="text-sm font-medium">{loggingOut ? '...' : (lang === 'fa' ? 'خروج' : 'Logout')}</span>}
         </motion.button>
         <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center justify-center p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
           <CollapseIcon size={18} />

@@ -1,103 +1,164 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Check, X, Star, MessageCircle, Users, Heart, Eye, Clock } from 'lucide-react';
-
-const tabKeys = ['biz.newApps', 'biz.underReview', 'biz.shortlisted', 'biz.appAccepted', 'biz.appRejected'] as const;
-
-const mockApps: Record<string, Array<{
-  name: string; username: string; niche: string; followers: string; engagement: string; campaign: string; date: string; score: number; avatar: string;
-}>> = {
-  'biz.newApps': [
-    { name: 'سارا احمدی', username: '@sara_beauty', niche: 'زیبایی', followers: '۴۵K', engagement: '۵.۲%', campaign: 'کمپین زیبایی', date: '۲ ساعت پیش', score: 92, avatar: 'S' },
-    { name: 'رضا فودی', username: '@reza_food', niche: 'غذا', followers: '۳۵K', engagement: '۴.۵%', campaign: 'کمپین غذا', date: '۵ ساعت پیش', score: 78, avatar: 'ر' },
-  ],
-  'biz.underReview': [
-    { name: 'مینا فشن', username: '@mina_fashion', niche: 'مد', followers: '۱۲۰K', engagement: '۶.۱%', campaign: 'فشن پاییزه', date: 'دیروز', score: 95, avatar: 'م' },
-  ],
-  'biz.shortlisted': [
-    { name: 'علی تکنولوژی', username: '@tech_ali', niche: 'تکنولوژی', followers: '۸۰K', engagement: '۳.۸%', campaign: 'تکنولوژی', date: '۲ روز پیش', score: 88, avatar: 'ع' },
-  ],
-  'biz.appAccepted': [],
-  'biz.appRejected': [],
-};
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Users, Calendar, ChevronRight, ChevronLeft, Clock, Loader2 } from 'lucide-react';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const BizApplications = () => {
-  const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<string>('biz.newApps');
+type Guest = {
+  id: string;
+  blogger_id: string;
+  campaign_id: string;
+  status: string;
+  created_at: string;
+  blogger_name?: string;
+  blogger_avatar?: string | null;
+  blogger_followers?: number | null;
+  campaign_title?: string;
+};
 
-  const apps = mockApps[activeTab] || [];
+const BizApplications = () => {
+  const { lang } = useLanguage();
+  const { user } = useAuth();
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dayOffset, setDayOffset] = useState(0); // 0 = today
+
+  const getDateRange = () => {
+    const start = new Date();
+    start.setDate(start.getDate() + dayOffset);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    return { start, end };
+  };
+
+  const { start, end } = getDateRange();
+
+  const fetchGuests = async () => {
+    if (!user) return;
+    setLoading(true);
+
+    // Get campaigns owned by this business
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('id, title')
+      .eq('business_id', user.id);
+
+    if (!campaigns || campaigns.length === 0) {
+      setGuests([]);
+      setLoading(false);
+      return;
+    }
+
+    const campaignIds = campaigns.map(c => c.id);
+    const campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c.title]));
+
+    // Get accepted applications for those campaigns
+    const { data: apps } = await supabase
+      .from('applications')
+      .select('id, blogger_id, campaign_id, status, created_at')
+      .in('campaign_id', campaignIds)
+      .eq('status', 'accepted');
+
+    if (!apps || apps.length === 0) {
+      setGuests([]);
+      setLoading(false);
+      return;
+    }
+
+    // Get blogger profiles
+    const bloggerIds = [...new Set(apps.map(a => a.blogger_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, username, avatar_url, followers_count')
+      .in('user_id', bloggerIds);
+
+    const profileMap = Object.fromEntries(
+      (profiles || []).map(p => [p.user_id, p])
+    );
+
+    const result: Guest[] = apps.map(a => ({
+      ...a,
+      blogger_name: profileMap[a.blogger_id]?.display_name || profileMap[a.blogger_id]?.username || 'بلاگر',
+      blogger_avatar: profileMap[a.blogger_id]?.avatar_url,
+      blogger_followers: profileMap[a.blogger_id]?.followers_count,
+      campaign_title: campaignMap[a.campaign_id] || '',
+    }));
+
+    setGuests(result);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchGuests();
+  }, [user, dayOffset]);
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString(lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' });
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
-      <motion.h1 variants={item} className="text-2xl font-bold gradient-text">{t('biz.applications')}</motion.h1>
+      <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
+        {lang === 'fa' ? 'مهمان‌ها' : 'Guests'}
+      </motion.h1>
 
-      <motion.div variants={item} className="flex gap-2 overflow-x-auto scrollbar-none -mx-4 px-4">
-        {tabKeys.map(tab => (
-          <motion.button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            whileTap={{ scale: 0.95 }}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
-              activeTab === tab ? 'gradient-bg text-primary-foreground shadow-lg shadow-primary/20' : 'glass'
-            }`}
-          >
-            {t(tab)} ({(mockApps[tab] || []).length})
-          </motion.button>
-        ))}
+      {/* Date Switcher */}
+      <motion.div variants={item} className="flex items-center justify-center gap-4">
+        <button onClick={() => setDayOffset(d => d - 7)} className="glass p-2 rounded-xl hover:glow-border transition-all">
+          {lang === 'fa' ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+        <div className="glass rounded-xl px-5 py-2 text-sm font-bold flex items-center gap-2">
+          <Calendar size={14} className="text-primary" />
+          {formatDate(start)} – {formatDate(end)}
+        </div>
+        <button onClick={() => setDayOffset(d => d + 7)} className="glass p-2 rounded-xl hover:glow-border transition-all">
+          {lang === 'fa' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
       </motion.div>
 
-      <AnimatePresence mode="wait">
-        <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
-          {apps.length === 0 ? (
-            <div className="glass rounded-3xl p-8 text-center">
-              <Clock size={32} className="mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground">{t('dash.noData')}</p>
-            </div>
-          ) : (
-            apps.map((a, i) => (
-              <motion.div key={i} className="glass rounded-3xl p-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-2xl gradient-bg flex items-center justify-center text-lg font-bold text-primary-foreground shrink-0">
-                    {a.avatar}
+      {/* Guest Cards */}
+      {loading ? (
+        <div className="glass rounded-3xl p-8 flex justify-center">
+          <Loader2 className="animate-spin text-primary" size={24} />
+        </div>
+      ) : guests.length === 0 ? (
+        <div className="glass rounded-3xl p-8 text-center">
+          <Clock size={32} className="mx-auto mb-3 opacity-50" />
+          <p className="text-sm text-muted-foreground">{lang === 'fa' ? 'مهمانی در این بازه زمانی وجود ندارد' : 'No guests in this period'}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {guests.map(g => (
+            <motion.div
+              key={g.id}
+              variants={item}
+              className="glass rounded-3xl p-4 flex flex-col items-center text-center border border-primary/10 shadow-lg shadow-primary/5"
+            >
+              <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-primary/30 mb-3">
+                {g.blogger_avatar ? (
+                  <img src={g.blogger_avatar} alt={g.blogger_name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full gradient-bg flex items-center justify-center text-lg font-bold text-primary-foreground">
+                    {g.blogger_name?.[0] || '?'}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold">{a.name}</h3>
-                      <div className="flex items-center gap-1 text-xs">
-                        <Star size={12} className="text-primary" />
-                        <span className="font-bold">{a.score}</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{a.username} · {a.niche}</p>
-                    <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-0.5"><Users size={10} /> {a.followers}</span>
-                      <span className="flex items-center gap-0.5"><Heart size={10} /> {a.engagement}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{a.campaign}</span>
-                      <span className="text-[10px] text-muted-foreground">{a.date}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <motion.button whileTap={{ scale: 0.95 }} className="flex-1 gradient-bg text-primary-foreground text-xs font-medium py-2 rounded-xl flex items-center justify-center gap-1">
-                    <Check size={12} /> {t('dash.accept')}
-                  </motion.button>
-                  <motion.button whileTap={{ scale: 0.95 }} className="flex-1 glass text-xs font-medium py-2 rounded-xl flex items-center justify-center gap-1 hover:bg-destructive/10 hover:text-destructive transition-all">
-                    <X size={12} /> {t('dash.decline')}
-                  </motion.button>
-                  <motion.button whileTap={{ scale: 0.95 }} className="glass text-xs py-2 px-3 rounded-xl"><Eye size={14} /></motion.button>
-                  <motion.button whileTap={{ scale: 0.95 }} className="glass text-xs py-2 px-3 rounded-xl"><MessageCircle size={14} /></motion.button>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </motion.div>
-      </AnimatePresence>
+                )}
+              </div>
+              <h3 className="font-bold text-sm truncate w-full">{g.blogger_name}</h3>
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                <Users size={11} className="text-primary" />
+                <span className="font-semibold text-foreground">
+                  {g.blogger_followers ? g.blogger_followers.toLocaleString('fa-IR') : '۰'}
+                </span>
+              </div>
+              <span className="text-[10px] text-primary/70 mt-1.5 bg-primary/5 px-2 py-0.5 rounded-full">{g.campaign_title}</span>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 };
