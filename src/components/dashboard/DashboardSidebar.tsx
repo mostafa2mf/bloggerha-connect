@@ -3,17 +3,15 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Home, Compass, Calendar, User, Settings, MessageCircle, LogOut, ChevronRight, ChevronLeft, Loader2, Upload } from 'lucide-react';
+import { Home, Calendar, User, MessageCircle, LogOut, ChevronRight, ChevronLeft, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 const tabs = [
   { id: 'home', icon: Home, key: 'dash.home' },
-  { id: 'explore', icon: Compass, key: 'dash.explore' },
-  { id: 'campaigns', icon: Calendar, key: 'dash.campaigns' },
-  { id: 'upload-review', icon: Upload, labelFa: 'بازبینی محتوا', labelEn: 'Upload Review' },
+  { id: 'campaigns', icon: Calendar, labelFa: 'کمپین‌ها', labelEn: 'Campaigns' },
+  { id: 'upload-review', icon: Upload, labelFa: 'Upload Review', labelEn: 'Upload Review' },
   { id: 'messages', icon: MessageCircle, key: 'biz.messages' },
   { id: 'profile', icon: User, key: 'dash.profile' },
-  { id: 'settings', icon: Settings, key: 'dash.settings' },
 ] as const;
 
 export type BloggerTabId = typeof tabs[number]['id'];

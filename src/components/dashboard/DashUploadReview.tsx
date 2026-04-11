@@ -4,7 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { syncUploadReview } from '@/lib/adminSync';
-import { Upload, ImagePlus, Loader2, CheckCircle2, Clock, X, Camera } from 'lucide-react';
+import { Upload, ImagePlus, Loader2, CheckCircle2, Clock, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 type UploadReview = {
@@ -14,8 +14,11 @@ type UploadReview = {
   status: string;
   admin_note: string | null;
   created_at: string;
-  campaigns?: { title: string } | null;
+  campaigns?: { title: string; city: string | null; cover_image: string | null } | null;
 };
+
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
+const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 const DashUploadReview = () => {
   const { lang } = useLanguage();
@@ -23,11 +26,11 @@ const DashUploadReview = () => {
   const [reviews, setReviews] = useState<UploadReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [hasPendingReview, setHasPendingReview] = useState(false);
+  const [selectedCampaignForUpload, setSelectedCampaignForUpload] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -41,12 +44,10 @@ const DashUploadReview = () => {
     setLoading(true);
     const { data } = await supabase
       .from('upload_reviews')
-      .select('*, campaigns(title)')
+      .select('*, campaigns(title, city, cover_image)')
       .eq('blogger_id', user.id)
       .order('created_at', { ascending: false });
-    const items = (data || []) as unknown as UploadReview[];
-    setReviews(items);
-    setHasPendingReview(items.some(r => r.status === 'pending'));
+    setReviews((data || []) as unknown as UploadReview[]);
     setLoading(false);
   };
 
@@ -54,7 +55,7 @@ const DashUploadReview = () => {
     if (!user) return;
     const { data } = await supabase
       .from('applications')
-      .select('campaign_id, campaigns(id, title)')
+      .select('campaign_id, campaigns(id, title, city, cover_image)')
       .eq('blogger_id', user.id)
       .eq('status', 'accepted');
     if (data) {
@@ -73,8 +74,8 @@ const DashUploadReview = () => {
     setPreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = async () => {
-    if (!user || !selectedCampaign) return;
+  const handleSubmit = async (campaignId: string) => {
+    if (!user) return;
     if (uploadFiles.length < 1) {
       toast.error(lang === 'fa' ? 'حداقل یک تصویر آپلود کنید' : 'Upload at least one image');
       return;
@@ -94,19 +95,19 @@ const DashUploadReview = () => {
 
       const { error } = await supabase.from('upload_reviews').insert({
         blogger_id: user.id,
-        campaign_id: selectedCampaign,
+        campaign_id: campaignId,
         images: imageUrls,
         status: 'pending',
       });
-
       if (error) throw error;
 
-      syncUploadReview({ campaign_id: selectedCampaign, blogger_id: user.id }).catch(console.error);
+      syncUploadReview({ campaign_id: campaignId, blogger_id: user.id }).catch(console.error);
 
       toast.success(lang === 'fa' ? 'محتوا برای بررسی ارسال شد' : 'Review submitted');
       setUploadFiles([]);
       setPreviews([]);
-      setSelectedCampaign('');
+      setSelectedCampaignForUpload(null);
+      setExpandedId(null);
       fetchReviews();
     } catch (err: any) {
       toast.error(err.message || 'Error');
@@ -115,155 +116,205 @@ const DashUploadReview = () => {
     }
   };
 
-  const statusBadge = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-green-500/10 text-green-400';
-      case 'rejected': return 'bg-red-500/10 text-red-400';
-      default: return 'bg-amber-500/10 text-amber-400';
-    }
-  };
+  // Merge campaigns (accepted) with existing reviews
+  const locationCards = campaigns.map(c => {
+    const review = reviews.find(r => r.campaign_id === c.id);
+    return {
+      campaign: c,
+      review,
+      isPending: review?.status === 'pending',
+      isApproved: review?.status === 'approved',
+      isRejected: review?.status === 'rejected',
+      hasReview: !!review,
+    };
+  });
 
-  const statusLabel = (status: string) => {
-    if (lang === 'fa') {
-      return status === 'approved' ? 'تأیید شده' : status === 'rejected' ? 'رد شده' : 'در انتظار بررسی';
-    }
-    return status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Pending';
-  };
+  // Also include reviews for campaigns not in accepted list
+  const orphanReviews = reviews.filter(r => !campaigns.some(c => c.id === r.campaign_id));
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <h1 className="text-2xl font-bold gradient-text">
-        {lang === 'fa' ? 'آپلود محتوا و بازبینی' : 'Upload Review'}
-      </h1>
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">Upload Review</motion.h1>
 
-      {hasPendingReview && (
-        <div className="glass rounded-2xl p-4 border border-amber-500/20 bg-amber-500/5 flex items-center gap-3">
-          <Clock size={18} className="text-amber-400 shrink-0" />
-          <p className="text-sm text-amber-300">
-            {lang === 'fa'
-              ? 'شما یک بازبینی در حال انتظار دارید. تا زمان تأیید ادمین نمی‌توانید در کمپین جدیدی شرکت کنید.'
-              : 'You have a pending review. You cannot join new campaigns until admin approves it.'}
+      <motion.p variants={item} className="text-sm text-muted-foreground">
+        {lang === 'fa'
+          ? 'لوکیشن‌هایی که بازدید کرده‌اید را انتخاب کنید و اسکرین‌شات استوری و پست خود را آپلود کنید.'
+          : 'Select visited locations and upload screenshots of your stories and posts.'}
+      </motion.p>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 size={28} className="animate-spin text-primary" />
+        </div>
+      ) : locationCards.length === 0 && orphanReviews.length === 0 ? (
+        <div className="glass rounded-3xl p-10 text-center">
+          <Upload size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground">
+            {lang === 'fa' ? 'هنوز لوکیشنی برای بازبینی ندارید' : 'No locations to review yet'}
           </p>
         </div>
-      )}
-
-      {/* Upload Form */}
-      <div className="glass rounded-3xl p-6 space-y-4">
-        <h2 className="font-bold flex items-center gap-2">
-          <Camera size={18} className="text-primary" />
-          {lang === 'fa' ? 'ارسال اسکرین‌شات استوری و پست' : 'Submit Story & Post Screenshots'}
-        </h2>
-
-        <div>
-          <label className="text-xs text-muted-foreground mb-1.5 block">
-            {lang === 'fa' ? 'کمپین مربوطه' : 'Related Campaign'}
-          </label>
-          <select
-            value={selectedCampaign}
-            onChange={e => setSelectedCampaign(e.target.value)}
-            className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none"
-          >
-            <option value="">{lang === 'fa' ? 'انتخاب کمپین...' : 'Select campaign...'}</option>
-            {campaigns.map(c => (
-              <option key={c.id} value={c.id}>{c.title}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="text-xs text-muted-foreground mb-1.5 block">
-            {lang === 'fa' ? 'تصاویر (حداکثر ۴ عکس)' : 'Images (max 4)'}
-          </label>
-          <label className="block cursor-pointer">
-            <div className="border-2 border-dashed border-border rounded-2xl p-6 flex items-center justify-center hover:border-primary/50 transition-colors">
-              <div className="text-center">
-                <ImagePlus size={28} className="mx-auto mb-2 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  {lang === 'fa' ? 'انتخاب تصاویر' : 'Select images'}
-                </span>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {locationCards.map(({ campaign: c, review, isPending, isApproved, hasReview }) => (
+            <motion.div
+              key={c.id}
+              variants={item}
+              className={`rounded-2xl overflow-hidden border shadow-lg transition-all duration-300 ${
+                isApproved
+                  ? 'opacity-50 border-border/20 shadow-none'
+                  : 'border-primary/20 shadow-primary/10 glass'
+              }`}
+            >
+              {/* Location Image */}
+              <div className="h-28 overflow-hidden relative bg-muted">
+                {c.cover_image ? (
+                  <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full gradient-bg flex items-center justify-center">
+                    <MapPin size={28} className="text-primary-foreground/60" />
+                  </div>
+                )}
+                {/* Status Badge */}
+                {isPending && (
+                  <span className="absolute top-2 start-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 backdrop-blur-sm">
+                    <Clock size={9} className="inline me-0.5" /> {lang === 'fa' ? 'در انتظار تأیید' : 'Pending'}
+                  </span>
+                )}
+                {isApproved && (
+                  <span className="absolute top-2 start-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 backdrop-blur-sm">
+                    <CheckCircle2 size={9} className="inline me-0.5" /> {lang === 'fa' ? 'تأیید شده' : 'Approved'}
+                  </span>
+                )}
               </div>
-            </div>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
-          </label>
 
-          {previews.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              {previews.map((p, i) => (
-                <div key={i} className="relative rounded-xl overflow-hidden aspect-square">
-                  <img src={p} alt="" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => removeFile(i)}
-                    className="absolute top-1 end-1 p-1 rounded-full bg-background/80 text-destructive hover:bg-destructive/20 transition-colors"
+              <div className="p-3">
+                <h3 className="font-bold text-sm truncate">{c.title}</h3>
+                {c.city && (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <MapPin size={10} /> {c.city}
+                  </p>
+                )}
+
+                {/* Upload Review Button */}
+                {!hasReview && !isApproved && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setSelectedCampaignForUpload(c.id);
+                      setExpandedId(expandedId === c.id ? null : c.id);
+                    }}
+                    className="w-full mt-2 gradient-bg text-primary-foreground font-bold py-2 rounded-xl text-[11px] hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-lg shadow-primary/20"
                   >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    <Upload size={12} /> Upload Review
+                  </motion.button>
+                )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || !selectedCampaign || uploadFiles.length < 1}
-          className="w-full gradient-bg text-primary-foreground font-medium py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {submitting && <Loader2 size={16} className="animate-spin" />}
-          <Upload size={16} />
-          {lang === 'fa' ? 'ارسال برای بازبینی' : 'Submit for Review'}
-        </button>
-      </div>
+                {/* Review images if exists */}
+                {review && review.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-1 mt-2">
+                    {review.images.map((img, i) => (
+                      <div key={i} className="rounded-lg overflow-hidden aspect-square">
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-      {/* Review History */}
-      <div className="space-y-3">
-        <h2 className="font-bold text-lg">
-          {lang === 'fa' ? 'تاریخچه بازبینی‌ها' : 'Review History'}
-        </h2>
-        {loading ? (
-          <div className="glass rounded-3xl p-8 flex justify-center">
-            <Loader2 className="animate-spin text-primary" size={24} />
-          </div>
-        ) : reviews.length === 0 ? (
-          <div className="glass rounded-3xl p-8 text-center">
-            <Upload size={32} className="mx-auto mb-3 opacity-50" />
-            <p className="text-sm text-muted-foreground">
-              {lang === 'fa' ? 'هنوز بازبینی ارسال نکرده‌اید' : 'No reviews submitted yet'}
-            </p>
-          </div>
-        ) : (
-          reviews.map(r => (
+                {review?.admin_note && (
+                  <p className="text-[10px] text-muted-foreground mt-1.5 glass rounded-lg p-1.5">
+                    {lang === 'fa' ? 'ادمین: ' : 'Admin: '}{review.admin_note}
+                  </p>
+                )}
+              </div>
+
+              {/* Upload Form (expanded) */}
+              <AnimatePresence>
+                {expandedId === c.id && selectedCampaignForUpload === c.id && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden border-t border-border/20"
+                  >
+                    <div className="p-3 space-y-2">
+                      <label className="block cursor-pointer">
+                        <div className="border-2 border-dashed border-primary/20 rounded-xl p-3 flex items-center justify-center hover:border-primary/50 transition-colors">
+                          <div className="text-center">
+                            <ImagePlus size={20} className="mx-auto mb-1 text-muted-foreground" />
+                            <span className="text-[10px] text-muted-foreground">
+                              {lang === 'fa' ? 'انتخاب تصاویر (حداکثر ۴)' : 'Select images (max 4)'}
+                            </span>
+                          </div>
+                        </div>
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+                      </label>
+
+                      {previews.length > 0 && (
+                        <div className="grid grid-cols-4 gap-1">
+                          {previews.map((p, i) => (
+                            <div key={i} className="relative rounded-lg overflow-hidden aspect-square">
+                              <img src={p} alt="" className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => removeFile(i)}
+                                className="absolute top-0.5 end-0.5 p-0.5 rounded-full bg-background/80 text-destructive"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => handleSubmit(c.id)}
+                        disabled={submitting || uploadFiles.length < 1}
+                        className="w-full gradient-bg text-primary-foreground font-bold py-2 rounded-xl text-[11px] disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        {submitting && <Loader2 size={12} className="animate-spin" />}
+                        {lang === 'fa' ? 'ارسال به ادمین' : 'Send to Admin'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ))}
+
+          {/* Orphan reviews */}
+          {orphanReviews.map(r => (
             <motion.div
               key={r.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`glass rounded-2xl p-4 transition-opacity ${r.status === 'approved' ? 'opacity-50' : ''}`}
+              variants={item}
+              className={`glass rounded-2xl overflow-hidden border shadow-lg transition-all ${
+                r.status === 'approved'
+                  ? 'opacity-50 border-border/20 shadow-none'
+                  : 'border-primary/20 shadow-primary/10'
+              }`}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold">
-                  {(r as any).campaigns?.title || lang === 'fa' ? 'کمپین' : 'Campaign'}
-                </span>
-                <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${statusBadge(r.status)}`}>
-                  {r.status === 'pending' && <Clock size={10} className="inline me-1" />}
-                  {r.status === 'approved' && <CheckCircle2 size={10} className="inline me-1" />}
-                  {statusLabel(r.status)}
+              <div className="p-3">
+                <h3 className="font-bold text-sm">{(r as any).campaigns?.title || 'Campaign'}</h3>
+                <div className="grid grid-cols-4 gap-1 mt-2">
+                  {r.images.map((img, i) => (
+                    <div key={i} className="rounded-lg overflow-hidden aspect-square">
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full mt-2 inline-block ${
+                  r.status === 'approved' ? 'bg-green-500/10 text-green-400' :
+                  r.status === 'rejected' ? 'bg-red-500/10 text-red-400' :
+                  'bg-amber-500/10 text-amber-400'
+                }`}>
+                  {r.status === 'approved' ? '✓' : r.status === 'rejected' ? '✗' : '⏳'}
+                  {' '}{r.status === 'approved' ? (lang === 'fa' ? 'تأیید شده' : 'Approved') :
+                   r.status === 'rejected' ? (lang === 'fa' ? 'رد شده' : 'Rejected') :
+                   (lang === 'fa' ? 'در انتظار' : 'Pending')}
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {r.images.map((img, i) => (
-                  <div key={i} className="rounded-xl overflow-hidden aspect-square">
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-              {r.admin_note && (
-                <p className="text-xs text-muted-foreground mt-2 glass rounded-lg p-2">
-                  {lang === 'fa' ? 'یادداشت ادمین: ' : 'Admin note: '}{r.admin_note}
-                </p>
-              )}
             </motion.div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 };

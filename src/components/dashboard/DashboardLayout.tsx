@@ -6,11 +6,9 @@ import { useSearchParams } from 'react-router-dom';
 import DashboardSidebar, { type BloggerTabId } from './DashboardSidebar';
 import DashTopBar from './DashTopBar';
 import DashHome from './DashHome';
-import DashExplore from './DashExplore';
 import DashCampaigns from './DashCampaigns';
 import DashProfile from './DashProfile';
 import DashMessages from './DashMessages';
-import DashSettings from './DashSettings';
 import DashUploadReview from './DashUploadReview';
 import PendingApprovalScreen from '../shared/PendingApprovalScreen';
 import { Loader2 } from 'lucide-react';
@@ -24,24 +22,18 @@ const DashboardLayout = () => {
   const [checking, setChecking] = useState(!isAdminPreview);
 
   useEffect(() => {
-    if (!user) {
-      setChecking(false);
-      return;
-    }
+    if (!user) { setChecking(false); return; }
     const checkStatus = async () => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('approval_status')
         .eq('user_id', user.id)
         .maybeSingle();
-      
       if (profile?.approval_status === 'approved') {
         setApprovalStatus('approved');
         setChecking(false);
         return;
       }
-
-      // Poll admin for latest status
       const result = await checkApproval('influencer', user.id, user.id);
       const status = result?.approval?.status || profile?.approval_status || 'pending';
       setApprovalStatus(status);
@@ -65,12 +57,10 @@ const DashboardLayout = () => {
   const renderTab = () => {
     switch (activeTab) {
       case 'home': return <DashHome />;
-      case 'explore': return <DashExplore />;
       case 'campaigns': return <DashCampaigns />;
       case 'upload-review': return <DashUploadReview />;
       case 'messages': return <DashMessages />;
       case 'profile': return <DashProfile />;
-      case 'settings': return <DashSettings />;
     }
   };
 
