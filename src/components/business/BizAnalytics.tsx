@@ -8,7 +8,7 @@ import { Users, Megaphone, CalendarCheck, Loader2 } from 'lucide-react';
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const BizAnalytics = () => {
+const BizAnalytics = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [stats, setStats] = useState({ visitors: 0, futureGuests: 0, activeCampaigns: 0 });

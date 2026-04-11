@@ -1,9 +1,15 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import AdminChatPanel from '@/components/shared/AdminChatPanel';
+import BackButton from '@/components/shared/BackButton';
 
-const BizMessages = () => {
+const BizMessages = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
-  return <AdminChatPanel lang={lang} />;
+  return (
+    <div>
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
+      <AdminChatPanel lang={lang} />
+    </div>
+  );
 };
 
 export default BizMessages;

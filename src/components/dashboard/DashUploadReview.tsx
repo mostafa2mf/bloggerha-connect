@@ -20,7 +20,7 @@ type UploadReview = {
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const DashUploadReview = () => {
+const DashUploadReview = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [reviews, setReviews] = useState<UploadReview[]>([]);

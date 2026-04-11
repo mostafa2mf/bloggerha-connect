@@ -25,7 +25,7 @@ const fakeImages = [
   'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
 ];
 
-const DashCampaigns = () => {
+const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('available');
