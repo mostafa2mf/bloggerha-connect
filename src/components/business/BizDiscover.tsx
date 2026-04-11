@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, Loader2 } from 'lucide-react';
+import { Users, Loader2, ChevronDown } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -16,13 +17,16 @@ type Blogger = {
   city: string | null;
 };
 
+const otherCities = ['مشهد', 'اصفهان', 'شیراز', 'تبریز', 'کرج'];
+
 const BizDiscover = () => {
   const { lang } = useLanguage();
   const [bloggers, setBloggers] = useState<Blogger[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [gender, setGender] = useState<'all' | 'male' | 'female'>('all');
-  const [city, setCity] = useState<'تهران' | 'other'>('تهران');
+  const [isFemale, setIsFemale] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('تهران');
+  const [showCities, setShowCities] = useState(false);
   const pageRef = useRef(0);
   const observerRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 12;
@@ -43,7 +47,7 @@ const BizDiscover = () => {
       .range(from, from + PAGE_SIZE - 1)
       .order('followers_count', { ascending: false });
 
-    if (city === 'تهران') {
+    if (selectedCity === 'تهران') {
       query = query.eq('city', 'تهران');
     }
 
@@ -53,27 +57,23 @@ const BizDiscover = () => {
     setBloggers(prev => reset ? items : [...prev, ...items]);
     pageRef.current += 1;
     setLoading(false);
-  }, [city]);
+  }, [selectedCity]);
 
   useEffect(() => {
     fetchBloggers(true);
-  }, [city, fetchBloggers]);
+  }, [selectedCity, fetchBloggers]);
 
-  // Auto-refresh every 30s
   useEffect(() => {
     const interval = setInterval(() => fetchBloggers(true), 30000);
     return () => clearInterval(interval);
   }, [fetchBloggers]);
 
-  // Infinite scroll observer
   useEffect(() => {
     const el = observerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
-          fetchBloggers();
-        }
+        if (entries[0].isIntersecting && hasMore && !loading) fetchBloggers();
       },
       { threshold: 0.5 }
     );
@@ -81,60 +81,72 @@ const BizDiscover = () => {
     return () => observer.disconnect();
   }, [hasMore, loading, fetchBloggers]);
 
-  const genderFilters = [
-    { key: 'all' as const, label: lang === 'fa' ? 'همه' : 'All' },
-    { key: 'male' as const, label: lang === 'fa' ? 'آقا' : 'Male' },
-    { key: 'female' as const, label: lang === 'fa' ? 'خانم' : 'Female' },
-  ];
-
-  const cityFilters = [
-    { key: 'تهران' as const, label: lang === 'fa' ? 'تهران' : 'Tehran', active: true },
-    { key: 'other' as const, label: lang === 'fa' ? 'سایر شهرها' : 'Other', active: false },
-  ];
-
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
         {lang === 'fa' ? 'بازدید بلاگرها' : 'Browse Bloggers'}
       </motion.h1>
 
-      {/* Filters */}
-      <motion.div variants={item} className="flex flex-wrap gap-3">
-        {/* Gender */}
-        <div className="flex gap-1.5 items-center">
-          <span className="text-xs text-muted-foreground me-1">{lang === 'fa' ? 'جنسیت:' : 'Gender:'}</span>
-          {genderFilters.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setGender(f.key)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                gender === f.key ? 'gradient-bg text-primary-foreground shadow-lg shadow-primary/20' : 'glass'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* Filters Row */}
+      <motion.div variants={item} className="flex items-center gap-4 flex-wrap">
+        {/* Gender Toggle */}
+        <div className="flex items-center gap-2.5 glass rounded-2xl px-4 py-2.5">
+          <span className={`text-xs font-bold transition-colors ${!isFemale ? 'text-primary' : 'text-muted-foreground'}`}>
+            {lang === 'fa' ? 'آقا' : 'Male'}
+          </span>
+          <Switch checked={isFemale} onCheckedChange={setIsFemale} />
+          <span className={`text-xs font-bold transition-colors ${isFemale ? 'text-primary' : 'text-muted-foreground'}`}>
+            {lang === 'fa' ? 'خانم' : 'Female'}
+          </span>
         </div>
 
-        {/* City */}
-        <div className="flex gap-1.5 items-center">
-          <span className="text-xs text-muted-foreground me-1">{lang === 'fa' ? 'شهر:' : 'City:'}</span>
-          {cityFilters.map(f => (
-            <button
-              key={f.key}
-              onClick={() => f.active && setCity(f.key)}
-              disabled={!f.active}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                city === f.key && f.active
-                  ? 'gradient-bg text-primary-foreground shadow-lg shadow-primary/20'
-                  : f.active
-                  ? 'glass'
-                  : 'glass opacity-40 cursor-not-allowed'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* City Selector */}
+        <div className="relative">
+          <button
+            onClick={() => setShowCities(!showCities)}
+            className="flex items-center gap-2 glass rounded-2xl px-4 py-2.5 hover:glow-border transition-all"
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              {selectedCity === 'تهران' && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              )}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${selectedCity === 'تهران' ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+            </span>
+            <span className="text-xs font-bold">{selectedCity}</span>
+            <ChevronDown size={14} className={`text-muted-foreground transition-transform ${showCities ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {showCities && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="absolute top-full mt-1.5 z-20 glass rounded-2xl border border-primary/10 shadow-xl shadow-primary/10 overflow-hidden min-w-[140px]"
+              >
+                <button
+                  onClick={() => { setSelectedCity('تهران'); setShowCities(false); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold hover:bg-primary/5 transition-colors"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  </span>
+                  تهران
+                </button>
+                {otherCities.map(c => (
+                  <button
+                    key={c}
+                    disabled
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed"
+                  >
+                    <span className="inline-flex rounded-full h-2 w-2 bg-muted-foreground/20" />
+                    {c}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
@@ -146,7 +158,6 @@ const BizDiscover = () => {
             variants={item}
             className="glass rounded-3xl p-4 flex flex-col items-center text-center border border-primary/10 shadow-lg shadow-primary/5 hover:shadow-primary/15 transition-all duration-300"
           >
-            {/* Avatar */}
             <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-primary/30 mb-3">
               {b.avatar_url ? (
                 <img src={b.avatar_url} alt={b.display_name || b.username} className="w-full h-full object-cover" />
@@ -156,12 +167,8 @@ const BizDiscover = () => {
                 </div>
               )}
             </div>
-
-            {/* Name */}
             <h3 className="font-bold text-sm truncate w-full">{b.display_name || b.username}</h3>
             <p className="text-[11px] text-muted-foreground">@{b.username}</p>
-
-            {/* Followers */}
             <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
               <Users size={12} className="text-primary" />
               <span className="font-semibold text-foreground">
