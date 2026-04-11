@@ -88,12 +88,18 @@ const BizProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
   const handleSave = async () => {
     setSaving(true);
     if (user) {
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         username,
         display_name: displayName,
         images,
         security_keyword: securityKeyword.trim() || null,
-      } as any).eq('user_id', user.id);
+      }).eq('user_id', user.id);
+      if (error) {
+        console.error('Profile update error:', error);
+        toast.error(lang === 'fa' ? 'خطا در ذخیره' : 'Save error');
+        setSaving(false);
+        return;
+      }
     }
     setSaving(false);
     setEditing(false);
@@ -175,7 +181,19 @@ const BizProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Shield size={12} /> {lang === 'fa' ? 'کلمه کلیدی امنیتی (حداکثر ۲ کلمه)' : 'Security Keyword (max 2 words)'}</label>
-              <input value={securityKeyword} onChange={e => setSecurityKeyword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'} className="w-full glass rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60 transition-all" />
+              <input
+                value={securityKeyword}
+                onChange={e => setSecurityKeyword(e.target.value)}
+                disabled={!editing}
+                placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'}
+                className={`w-full glass rounded-xl p-3 text-sm font-medium focus:outline-none disabled:opacity-60 transition-all ring-2 ${
+                  securityKeyword.trim().length > 0
+                    ? 'ring-emerald-500/60 border-emerald-500/30'
+                    : editing
+                      ? 'ring-red-500/40 border-red-500/20'
+                      : 'ring-transparent'
+                }`}
+              />
             </div>
           </div>
         </motion.div>

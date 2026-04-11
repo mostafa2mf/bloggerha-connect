@@ -250,7 +250,19 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
           </div>
           <div>
             <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><Key size={12} /> {lang === 'fa' ? 'کلمه کلیدی امنیتی (حداکثر ۲ کلمه)' : 'Security Keyword (max 2 words)'}</label>
-            <input value={securityKeyword} onChange={e => setSecurityKeyword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'} className="w-full glass rounded-xl p-3 text-sm disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary/50" />
+            <input
+              value={securityKeyword}
+              onChange={e => setSecurityKeyword(e.target.value)}
+              disabled={!editing}
+              placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'}
+              className={`w-full glass rounded-xl p-3 text-sm disabled:opacity-60 focus:outline-none transition-all ring-2 ${
+                securityKeyword.trim().length > 0
+                  ? 'ring-emerald-500/60 border-emerald-500/30'
+                  : editing
+                    ? 'ring-red-500/40 border-red-500/20'
+                    : 'ring-transparent'
+              }`}
+            />
           </div>
         </motion.div>
       </div>
