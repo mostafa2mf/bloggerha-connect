@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN security_keyword text DEFAULT null;

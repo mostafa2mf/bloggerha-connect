@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sun, Moon, Globe, Shield } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, Sun, Moon, Globe, Shield, LogOut, Loader2 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AdminEntryModal from './AdminEntryModal';
+import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
 
 const Header = () => {
   const { t, toggleLang, lang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -30,6 +35,14 @@ const Header = () => {
     { label: t('nav.about'), href: '/#about' },
     { label: t('nav.contact'), href: '/#contact' },
   ];
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut();
+    toast.success(lang === 'fa' ? 'با موفقیت خارج شدید' : 'Logged out successfully');
+    navigate('/');
+    setLoggingOut(false);
+  };
 
   return (
     <>
@@ -86,6 +99,17 @@ const Header = () => {
               </AnimatePresence>
             </button>
 
+            {isDashboard && user && (
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass text-xs font-bold hover:bg-destructive/10 hover:text-destructive transition-all duration-300 disabled:opacity-50"
+              >
+                {loggingOut ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                <span>{lang === 'fa' ? 'خروج' : 'Logout'}</span>
+              </button>
+            )}
+
             {!isDashboard && (
               <button
                 onClick={() => setAdminModalOpen(true)}
@@ -97,14 +121,8 @@ const Header = () => {
             )}
           </div>
 
+          {/* Mobile controls */}
           <div className="flex md:hidden items-center gap-2">
-            <button onClick={toggleLang} className="flex items-center gap-1 px-2 py-1.5 rounded-lg glass text-xs font-bold">
-              <Globe size={13} />
-              {lang === 'fa' ? 'EN' : 'FA'}
-            </button>
-            <button onClick={toggleTheme} className="p-2 rounded-lg glass">
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
             <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg glass">
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -112,6 +130,7 @@ const Header = () => {
         </div>
       </motion.header>
 
+      {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -126,6 +145,35 @@ const Header = () => {
                   {item.label}
                 </a>
               ))}
+
+              {/* Utility buttons row */}
+              <div className="flex items-center gap-2 pt-2 border-t border-border/30 mt-1">
+                <button
+                  onClick={() => { toggleLang(); setMobileOpen(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass text-xs font-bold flex-1 justify-center"
+                >
+                  <Globe size={13} />
+                  {lang === 'fa' ? 'EN' : 'FA'}
+                </button>
+                <button
+                  onClick={() => { toggleTheme(); setMobileOpen(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass text-xs font-bold flex-1 justify-center"
+                >
+                  {isDark ? <Sun size={14} /> : <Moon size={14} />}
+                  {isDark ? (lang === 'fa' ? 'روشن' : 'Light') : (lang === 'fa' ? 'تاریک' : 'Dark')}
+                </button>
+                {isDashboard && user && (
+                  <button
+                    onClick={() => { handleLogout(); setMobileOpen(false); }}
+                    disabled={loggingOut}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass text-xs font-bold flex-1 justify-center hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  >
+                    {loggingOut ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />}
+                    {lang === 'fa' ? 'خروج' : 'Logout'}
+                  </button>
+                )}
+              </div>
+
               {!isDashboard && (
                 <button
                   onClick={() => { setAdminModalOpen(true); setMobileOpen(false); }}

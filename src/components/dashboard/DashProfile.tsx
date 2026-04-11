@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, Instagram, MapPin, Edit3, Save, Users, Heart, Zap, Award, CheckCircle, AlertCircle, Upload, X, Image, AlertTriangle, Loader2 } from 'lucide-react';
+import { Camera, Instagram, MapPin, Edit3, Save, Users, CheckCircle, AlertCircle, Upload, X, Image, AlertTriangle, Loader2, Key } from 'lucide-react';
 import { toast } from 'sonner';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
@@ -24,6 +24,7 @@ const DashProfile = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [followersCount, setFollowersCount] = useState(0);
+  const [securityKeyword, setSecurityKeyword] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +48,7 @@ const DashProfile = () => {
       setAvatarUrl(data.avatar_url);
       setImages(data.images || []);
       setFollowersCount(data.followers_count || 0);
+      setSecurityKeyword((data as any).security_keyword || '');
     }
     setLoading(false);
   };
@@ -57,6 +59,7 @@ const DashProfile = () => {
     { label: lang === 'fa' ? 'تصویر پروفایل' : 'Profile Photo', done: !!avatarUrl },
     { label: lang === 'fa' ? 'بیوگرافی' : 'Bio', done: bio.trim().length > 0 },
     { label: lang === 'fa' ? 'اینستاگرام' : 'Instagram', done: insta.trim().length > 0 },
+    { label: lang === 'fa' ? 'کلمه کلیدی امنیتی' : 'Security Keyword', done: securityKeyword.trim().length > 0 },
     { label: lang === 'fa' ? `${MAX_IMAGES} تصویر گالری (${images.length}/${MAX_IMAGES})` : `${MAX_IMAGES} gallery images (${images.length}/${MAX_IMAGES})`, done: hasMinImages },
   ];
   const pct = Math.round((healthItems.filter(p => p.done).length / healthItems.length) * 100);
@@ -106,13 +109,19 @@ const DashProfile = () => {
 
   const handleSave = async () => {
     if (!user) return;
+    // Validate security keyword: max 2 words
+    if (securityKeyword.trim() && securityKeyword.trim().split(/\s+/).length > 2) {
+      toast.error(lang === 'fa' ? 'کلمه کلیدی حداکثر ۲ کلمه باشد' : 'Security keyword max 2 words');
+      return;
+    }
     setSaving(true);
     await supabase.from('profiles').update({
       display_name: displayName,
       bio,
       instagram: insta,
       city,
-    }).eq('user_id', user.id);
+      security_keyword: securityKeyword.trim() || null,
+    } as any).eq('user_id', user.id);
     setSaving(false);
     setEditing(false);
     toast.success(lang === 'fa' ? 'پروفایل ذخیره شد' : 'Profile saved');
@@ -128,7 +137,6 @@ const DashProfile = () => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-      {/* Warning */}
       {!isComplete && (
         <motion.div variants={item} className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle size={20} className="text-amber-400 shrink-0" />
@@ -142,7 +150,6 @@ const DashProfile = () => {
       <motion.div variants={item} className="glass-gold rounded-3xl p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
         <div className="relative z-10 flex items-center gap-5">
-          {/* Avatar */}
           <div className="relative group">
             <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-primary/30 shadow-xl shadow-primary/20">
               {avatarUrl ? (
@@ -184,7 +191,6 @@ const DashProfile = () => {
 
       {/* Stats + Health side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Profile Health */}
         <motion.div variants={item} className="glass rounded-3xl p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold">{lang === 'fa' ? 'سلامت پروفایل' : 'Profile Health'}</h3>
@@ -233,6 +239,10 @@ const DashProfile = () => {
           <div>
             <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><Instagram size={12} /> {lang === 'fa' ? 'اینستاگرام' : 'Instagram'}</label>
             <input value={insta} onChange={e => setInsta(e.target.value)} disabled={!editing} className="w-full glass rounded-xl p-3 text-sm disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><Key size={12} /> {lang === 'fa' ? 'کلمه کلیدی امنیتی (حداکثر ۲ کلمه)' : 'Security Keyword (max 2 words)'}</label>
+            <input value={securityKeyword} onChange={e => setSecurityKeyword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'} className="w-full glass rounded-xl p-3 text-sm disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary/50" />
           </div>
         </motion.div>
       </div>

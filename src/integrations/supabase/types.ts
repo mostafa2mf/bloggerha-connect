@@ -208,6 +208,7 @@ export type Database = {
           instagram: string | null
           profile_completion: number | null
           role: string
+          security_keyword: string | null
           updated_at: string
           user_id: string
           username: string
@@ -227,6 +228,7 @@ export type Database = {
           instagram?: string | null
           profile_completion?: number | null
           role?: string
+          security_keyword?: string | null
           updated_at?: string
           user_id: string
           username: string
@@ -246,6 +248,7 @@ export type Database = {
           instagram?: string | null
           profile_completion?: number | null
           role?: string
+          security_keyword?: string | null
           updated_at?: string
           user_id?: string
           username?: string

@@ -20,6 +20,7 @@ const BizProfile = () => {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  const [securityKeyword, setSecurityKeyword] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
@@ -37,6 +38,7 @@ const BizProfile = () => {
           setDisplayName(data.display_name || '');
           setAvatarUrl(data.avatar_url);
           setImages(data.images || []);
+          setSecurityKeyword((data as any).security_keyword || '');
         }
       });
   }, [user]);
@@ -46,9 +48,11 @@ const BizProfile = () => {
   const hasMinImages = images.length >= MAX_IMAGES;
   const isProfileComplete = hasUsername && hasPassword && hasMinImages;
 
+  const hasKeyword = securityKeyword.trim().length > 0;
   const healthItems = [
     { label: lang === 'fa' ? 'نام کاربری' : 'Username', done: hasUsername },
     { label: lang === 'fa' ? 'رمز عبور' : 'Password', done: hasPassword },
+    { label: lang === 'fa' ? 'کلمه کلیدی امنیتی' : 'Security Keyword', done: hasKeyword },
     { label: lang === 'fa' ? `${MAX_IMAGES} تصویر (${images.length}/${MAX_IMAGES})` : `${MAX_IMAGES} images (${images.length}/${MAX_IMAGES})`, done: hasMinImages },
   ];
 
@@ -87,7 +91,8 @@ const BizProfile = () => {
         username,
         display_name: displayName,
         images,
-      }).eq('user_id', user.id);
+        security_keyword: securityKeyword.trim() || null,
+      } as any).eq('user_id', user.id);
     }
     setSaving(false);
     setEditing(false);
@@ -165,6 +170,10 @@ const BizProfile = () => {
             <div>
               <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Lock size={12} /> {lang === 'fa' ? 'رمز عبور *' : 'Password *'}</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'حداقل ۶ کاراکتر' : 'Min 6 chars'} className="w-full glass rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60 transition-all" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Shield size={12} /> {lang === 'fa' ? 'کلمه کلیدی امنیتی (حداکثر ۲ کلمه)' : 'Security Keyword (max 2 words)'}</label>
+              <input value={securityKeyword} onChange={e => setSecurityKeyword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'} className="w-full glass rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60 transition-all" />
             </div>
           </div>
         </motion.div>
