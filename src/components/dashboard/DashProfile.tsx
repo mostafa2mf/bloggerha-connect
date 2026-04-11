@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Camera, Instagram, MapPin, Edit3, Save, Users, CheckCircle, AlertCircle, Upload, X, Image, AlertTriangle, Loader2, Key } from 'lucide-react';
 import { toast } from 'sonner';
+import BackButton from '@/components/shared/BackButton';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
