@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { checkApproval } from '@/lib/adminSync';
 import { useSearchParams } from 'react-router-dom';
-import DashboardSidebar, { type BloggerTabId } from './DashboardSidebar';
 import DashTopBar from './DashTopBar';
 import DashHome from './DashHome';
 import DashCampaigns from './DashCampaigns';
@@ -13,8 +12,10 @@ import DashUploadReview from './DashUploadReview';
 import PendingApprovalScreen from '../shared/PendingApprovalScreen';
 import { Loader2 } from 'lucide-react';
 
+type TabId = 'home' | 'campaigns' | 'upload-review' | 'messages' | 'profile';
+
 const DashboardLayout = () => {
-  const [activeTab, setActiveTab] = useState<BloggerTabId>('home');
+  const [activeTab, setActiveTab] = useState<TabId>('home');
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const isAdminPreview = searchParams.get('admin_preview') === 'true';
@@ -56,7 +57,7 @@ const DashboardLayout = () => {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'home': return <DashHome />;
+      case 'home': return <DashHome onNavigate={(tab) => setActiveTab(tab as TabId)} />;
       case 'campaigns': return <DashCampaigns />;
       case 'upload-review': return <DashUploadReview />;
       case 'messages': return <DashMessages />;
@@ -65,16 +66,13 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)]">
-      <DashboardSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <DashTopBar />
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-6xl mx-auto">
-            {renderTab()}
-          </div>
-        </main>
-      </div>
+    <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+      <DashTopBar onGoHome={() => setActiveTab('home')} />
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          {renderTab()}
+        </div>
+      </main>
     </div>
   );
 };
