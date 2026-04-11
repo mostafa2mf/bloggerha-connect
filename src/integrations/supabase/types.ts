@@ -228,11 +228,13 @@ export type Database = {
           city: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           engagement_rate: number | null
           followers_count: number | null
           id: string
           images: string[] | null
           instagram: string | null
+          phone: string | null
           profile_completion: number | null
           role: string
           security_keyword: string | null
@@ -248,11 +250,13 @@ export type Database = {
           city?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           engagement_rate?: number | null
           followers_count?: number | null
           id?: string
           images?: string[] | null
           instagram?: string | null
+          phone?: string | null
           profile_completion?: number | null
           role?: string
           security_keyword?: string | null
@@ -268,11 +272,13 @@ export type Database = {
           city?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           engagement_rate?: number | null
           followers_count?: number | null
           id?: string
           images?: string[] | null
           instagram?: string | null
+          phone?: string | null
           profile_completion?: number | null
           role?: string
           security_keyword?: string | null

@@ -1,44 +1,54 @@
-import { useState, FormEvent, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState, FormEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Eye, EyeOff, User, Mail, Phone, Lock, Instagram, FileText, Tag, Loader2 } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, User, Mail, Phone, Lock, Instagram, Tag, Loader2, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  businessRegisterSchema,
+  bloggerRegisterSchema,
+  normalizePhone,
+  persianToEnglishDigits,
+} from '@/lib/registerValidation';
+import type { ZodError } from 'zod';
 
 interface Props {
   type: 'blogger' | 'business';
 }
 
+type FieldErrors = Record<string, string[]>;
+
+function zodToFieldErrors(err: ZodError): FieldErrors {
+  const out: FieldErrors = {};
+  for (const issue of err.issues) {
+    const key = issue.path[0] as string;
+    (out[key] ??= []).push(issue.message);
+  }
+  return out;
+}
+
 const RegisterForm = ({ type }: Props) => {
-  const { t, lang } = useLanguage();
-  const { signUp } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [bio, setBio] = useState('');
+  const [password, setPassword] = useState('');
   const [instagram, setInstagram] = useState('');
+  const [followersCount, setFollowersCount] = useState('');
   const [category, setCategory] = useState('');
 
-  const title = type === 'blogger' ? t('register.blogger.title') : t('register.business.title');
-
-  const categories = [
-    t('register.categories.lifestyle'),
-    t('register.categories.tech'),
-    t('register.categories.food'),
-    t('register.categories.fashion'),
-    t('register.categories.travel'),
-    t('register.categories.beauty'),
-  ];
+  const title = type === 'blogger' ? 'ثبت‌نام بلاگر' : 'ثبت‌نام کسب‌وکار';
 
   const getStrength = (pw: string) => {
     let s = 0;
-    if (pw.length >= 6) s++;
-    if (pw.length >= 10) s++;
+    if (pw.length >= 8) s++;
+    if (pw.length >= 12) s++;
     if (/[A-Z]/.test(pw)) s++;
     if (/[0-9]/.test(pw)) s++;
     if (/[^A-Za-z0-9]/.test(pw)) s++;
@@ -50,23 +60,103 @@ const RegisterForm = ({ type }: Props) => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) {
-      toast.error(lang === 'fa' ? 'لطفاً فیلدهای الزامی را پر کنید' : 'Please fill required fields');
+    setFieldErrors({});
+
+    // Client-side validation
+    const rawData: any = {
+      full_name: fullName,
+      email,
+      phone,
+      password,
+      instagram_url: instagram,
+      category,
+    };
+    if (type === 'blogger') {
+      rawData.followers_count = followersCount;
+    }
+
+    const schema = type === 'blogger' ? bloggerRegisterSchema : businessRegisterSchema;
+    const result = schema.safeParse(rawData);
+
+    if (!result.success) {
+      setFieldErrors(zodToFieldErrors(result.error));
       return;
     }
+
     setLoading(true);
-    const { error } = await signUp(email, password, type, name);
-    setLoading(false);
-    if (error) {
-      toast.error(error.message || (lang === 'fa' ? 'خطا در ثبت‌نام' : 'Registration error'));
-      return;
+
+    try {
+      // Call edge function for server-side validation + registration
+      const { data: response, error: fnError } = await supabase.functions.invoke('register', {
+        body: { ...rawData, role: type },
+      });
+
+      if (fnError) {
+        toast.error('خطایی در پردازش درخواست رخ داد. لطفاً دوباره تلاش کنید.');
+        setLoading(false);
+        return;
+      }
+
+      if (!response.success) {
+        if (response.errors && Object.keys(response.errors).length > 0) {
+          setFieldErrors(response.errors);
+        }
+        toast.error(response.message || 'ثبت‌نام انجام نشد.');
+        setLoading(false);
+        return;
+      }
+
+      // Auto-login after successful registration
+      const normalizedPhone = normalizePhone(phone);
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (loginError) {
+        // Registration succeeded but auto-login failed — still show success
+        toast.success(response.message);
+        setTimeout(() => navigate('/'), 2000);
+      } else {
+        toast.success(response.message);
+        const dashPath = type === 'business' ? '/dashboard/business' : '/dashboard';
+        setTimeout(() => navigate(dashPath), 1500);
+      }
+    } catch {
+      toast.error('خطایی در پردازش درخواست رخ داد. لطفاً دوباره تلاش کنید.');
+    } finally {
+      setLoading(false);
     }
-    toast.success(t('register.success'));
-    const dashPath = type === 'business' ? '/dashboard/business' : '/dashboard';
-    setTimeout(() => navigate(dashPath), 1500);
   };
 
-  const inputClass = "w-full bg-background/50 border border-border rounded-xl pe-4 ps-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/50";
+  const inputClass =
+    'w-full bg-background/50 border border-border rounded-xl pe-4 ps-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/50';
+  const errorInputClass =
+    'w-full bg-background/50 border border-destructive rounded-xl pe-4 ps-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/50 transition-all placeholder:text-muted-foreground/50';
+
+  const getInputClass = (field: string) => (fieldErrors[field] ? errorInputClass : inputClass);
+
+  const FieldError = ({ field }: { field: string }) => {
+    const errs = fieldErrors[field];
+    if (!errs?.length) return null;
+    return (
+      <AnimatePresence>
+        {errs.map((msg, i) => (
+          <motion.p
+            key={i}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="text-xs text-destructive mt-1"
+          >
+            {msg}
+          </motion.p>
+        ))}
+      </AnimatePresence>
+    );
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center py-24 px-4 relative">
@@ -91,44 +181,80 @@ const RegisterForm = ({ type }: Props) => {
           </Link>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <User size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input required type="text" placeholder={t('register.name')} value={name} onChange={e => setName(e.target.value)} className={inputClass} />
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {/* Full Name */}
+          <div>
+            <div className="relative">
+              <User size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="نام و نام خانوادگی خود را وارد کنید"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={getInputClass('full_name')}
+              />
+            </div>
+            <FieldError field="full_name" />
           </div>
 
-          <div className="relative">
-            <Mail size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input required type="email" placeholder={t('register.email')} value={email} onChange={e => setEmail(e.target.value)} className={inputClass} />
+          {/* Email */}
+          <div>
+            <div className="relative">
+              <Mail size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="email"
+                placeholder="example@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={getInputClass('email')}
+                dir="ltr"
+              />
+            </div>
+            <FieldError field="email" />
           </div>
 
-          <div className="relative">
-            <Phone size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input required type="tel" placeholder={t('register.phone')} value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} />
+          {/* Phone */}
+          <div>
+            <div className="relative">
+              <Phone size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="tel"
+                placeholder="09123456789"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className={getInputClass('phone')}
+                dir="ltr"
+              />
+            </div>
+            <FieldError field="phone" />
           </div>
 
-          <div className="relative">
-            <Lock size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              required
-              type={showPassword ? 'text' : 'password'}
-              placeholder={t('register.password')}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className={inputClass}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+          {/* Password */}
+          <div>
+            <div className="relative">
+              <Lock size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="حداقل ۸ کاراکتر"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={getInputClass('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <FieldError field="password" />
           </div>
 
+          {/* Password strength */}
           {password && (
             <div className="flex gap-1">
-              {[0, 1, 2, 3].map(i => (
+              {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
                   className={`h-1 flex-1 rounded-full transition-colors ${i < strength ? strengthColors[strength] : 'bg-border'}`}
@@ -137,28 +263,54 @@ const RegisterForm = ({ type }: Props) => {
             </div>
           )}
 
-          <div className="relative">
-            <FileText size={18} className="absolute start-3 top-3 text-muted-foreground" />
-            <textarea
-              rows={3}
-              placeholder={t('register.description')}
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              className="w-full bg-background/50 border border-border rounded-xl pe-4 ps-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none placeholder:text-muted-foreground/50"
-            />
+          {/* Instagram */}
+          <div>
+            <div className="relative">
+              <Instagram size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="url"
+                placeholder="https://instagram.com/yourusername"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                className={getInputClass('instagram_url')}
+                dir="ltr"
+              />
+            </div>
+            <FieldError field="instagram_url" />
           </div>
 
-          <div className="relative">
-            <Instagram size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input type="url" placeholder={t('register.instagram')} value={instagram} onChange={e => setInstagram(e.target.value)} className={inputClass} />
-          </div>
+          {/* Followers Count - Only for blogger */}
+          {type === 'blogger' && (
+            <div>
+              <div className="relative">
+                <Users size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="مثال: 150000"
+                  value={followersCount}
+                  onChange={(e) => setFollowersCount(e.target.value)}
+                  className={getInputClass('followers_count')}
+                  dir="ltr"
+                />
+              </div>
+              <FieldError field="followers_count" />
+            </div>
+          )}
 
-          <div className="relative">
-            <Tag size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <select value={category} onChange={e => setCategory(e.target.value)} className={inputClass + " appearance-none"}>
-              <option value="">{t('register.category')}</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+          {/* Category */}
+          <div>
+            <div className="relative">
+              <Tag size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="مثال: زیبایی، مد، تکنولوژی"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={getInputClass('category')}
+              />
+            </div>
+            <FieldError field="category" />
           </div>
 
           <button
@@ -167,7 +319,7 @@ const RegisterForm = ({ type }: Props) => {
             className="w-full gradient-bg text-primary-foreground font-medium py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 size={16} className="animate-spin" />}
-            {loading ? '' : t('register.submit')}
+            {loading ? 'در حال ثبت‌نام...' : 'ثبت‌نام'}
           </button>
         </form>
       </motion.div>
