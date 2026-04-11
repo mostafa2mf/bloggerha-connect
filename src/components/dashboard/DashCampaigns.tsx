@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Calendar, Loader2, FolderOpen, CheckCircle2, Clock, ChevronLeft, ChevronRight, Phone, Sparkles } from 'lucide-react';
+import { MapPin, Calendar, Loader2, FolderOpen, CheckCircle2, Clock, ChevronLeft, Phone, Sparkles, Search, Filter, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import jalaali from 'jalaali-js';
+import SkeletonCard from '@/components/shared/SkeletonCard';
 
 function toJalaliStr(dateStr: string) {
   const d = new Date(dateStr);
@@ -19,12 +20,14 @@ const tabFilters = ['available', 'pending', 'approved'] as const;
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-// Fake campaign images for carousel
 const fakeImages = [
   'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
 ];
+
+const cities = ['تهران', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'اهواز', 'کرج', 'قم'];
+const categories = ['رستوران', 'کافه', 'هتل', 'فروشگاه', 'آرایشگاه', 'ورزشی', 'گردشگری', 'فناوری'];
 
 const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
@@ -38,6 +41,13 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [carouselIdx, setCarouselIdx] = useState<Record<string, number>>({});
   const [hasPendingReview, setHasPendingReview] = useState(false);
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCity, setFilterCity] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'popular'>('newest');
 
   useEffect(() => {
     fetchCampaigns();
@@ -60,18 +70,13 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   const fetchCampaigns = async () => {
     setLoading(true);
-    // Get campaigns for next 7 days or active ones
-    const now = new Date().toISOString().split('T')[0];
-    const next7 = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-    
     const { data } = await supabase
       .from('campaigns')
       .select('*')
       .eq('admin_approval_status', 'approved')
       .in('status', ['active', 'scheduled'])
       .order('created_at', { ascending: false })
-      .limit(20);
-    
+      .limit(50);
     setCampaigns(data || []);
     setLoading(false);
   };
@@ -103,7 +108,7 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
     if (error) {
       toast.error(lang === 'fa' ? 'خطا در ارسال درخواست' : 'Error submitting');
     } else {
-      toast.success(lang === 'fa' ? 'درخواست آفر ارسال شد' : 'Application submitted');
+      toast.success(lang === 'fa' ? '✨ درخواست آفر ارسال شد' : '✨ Application submitted');
       setAppliedIds(prev => new Set(prev).add(campaignId));
     }
     setApplyingId(null);
@@ -119,13 +124,51 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
     approved: lang === 'fa' ? 'تأیید شده' : 'Approved',
   };
 
-  const filteredCampaigns = campaigns.filter(c => {
-    const isPending = appliedIds.has(c.id);
-    const isApproved = approvedIds.has(c.id);
-    if (activeTab === 'pending') return isPending;
-    if (activeTab === 'approved') return isApproved;
-    return !isPending && !isApproved; // available
-  });
+  const filteredCampaigns = useMemo(() => {
+    let result = campaigns.filter(c => {
+      const isPending = appliedIds.has(c.id);
+      const isApproved = approvedIds.has(c.id);
+      if (activeTab === 'pending') return isPending;
+      if (activeTab === 'approved') return isApproved;
+      return !isPending && !isApproved;
+    });
+
+    // Search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(c =>
+        c.title?.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q) ||
+        c.city?.toLowerCase().includes(q)
+      );
+    }
+
+    // City filter
+    if (filterCity) {
+      result = result.filter(c => c.city === filterCity);
+    }
+
+    // Category filter
+    if (filterCategory) {
+      result = result.filter(c => c.category === filterCategory);
+    }
+
+    // Sort
+    if (sortBy === 'popular') {
+      result = [...result].sort((a, b) => (b.applicants_count || 0) - (a.applicants_count || 0));
+    }
+
+    return result;
+  }, [campaigns, activeTab, appliedIds, approvedIds, searchQuery, filterCity, filterCategory, sortBy]);
+
+  const hasActiveFilters = searchQuery || filterCity || filterCategory;
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterCity('');
+    setFilterCategory('');
+    setSortBy('newest');
+  };
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
@@ -133,6 +176,87 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
         {lang === 'fa' ? 'کمپین‌ها' : 'Campaigns'}
       </motion.h1>
+
+      {/* Search Bar */}
+      <motion.div variants={item} className="relative">
+        <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder={lang === 'fa' ? 'جستجوی کمپین...' : 'Search campaigns...'}
+          className="w-full glass rounded-2xl ps-10 pe-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`absolute end-2 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all ${showFilters ? 'gradient-bg text-primary-foreground' : 'hover:bg-muted'}`}
+        >
+          <SlidersHorizontal size={16} />
+        </button>
+      </motion.div>
+
+      {/* Advanced Filters */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold flex items-center gap-1.5">
+                  <Filter size={13} />
+                  {lang === 'fa' ? 'فیلترها' : 'Filters'}
+                </h4>
+                {hasActiveFilters && (
+                  <button onClick={clearFilters} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
+                    <X size={10} /> {lang === 'fa' ? 'حذف فیلترها' : 'Clear'}
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {/* City */}
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">{lang === 'fa' ? 'شهر' : 'City'}</label>
+                  <select
+                    value={filterCity}
+                    onChange={e => setFilterCity(e.target.value)}
+                    className="w-full glass rounded-xl p-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="">{lang === 'fa' ? 'همه شهرها' : 'All cities'}</option>
+                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {/* Category */}
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">{lang === 'fa' ? 'دسته‌بندی' : 'Category'}</label>
+                  <select
+                    value={filterCategory}
+                    onChange={e => setFilterCategory(e.target.value)}
+                    className="w-full glass rounded-xl p-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="">{lang === 'fa' ? 'همه دسته‌ها' : 'All categories'}</option>
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {/* Sort */}
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">{lang === 'fa' ? 'مرتب‌سازی' : 'Sort'}</label>
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as any)}
+                    className="w-full glass rounded-xl p-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="newest">{lang === 'fa' ? 'جدیدترین' : 'Newest'}</option>
+                    <option value="popular">{lang === 'fa' ? 'محبوب‌ترین' : 'Most Popular'}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Tabs */}
       <motion.div variants={item} className="flex gap-2">
@@ -154,21 +278,26 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
       {/* Campaign Cards */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={activeTab}
+          key={activeTab + searchQuery + filterCity + filterCategory + sortBy}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
         >
           {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 size={28} className="animate-spin text-primary" />
-            </div>
+            <SkeletonCard count={4} type="card" />
           ) : filteredCampaigns.length === 0 ? (
             <div className="glass rounded-3xl p-10 text-center">
               <FolderOpen size={40} className="mx-auto text-muted-foreground/40 mb-3" />
               <p className="text-sm text-muted-foreground">
-                {lang === 'fa' ? 'کمپینی یافت نشد' : 'No campaigns found'}
+                {hasActiveFilters
+                  ? (lang === 'fa' ? 'نتیجه‌ای با فیلترهای انتخابی یافت نشد' : 'No results match your filters')
+                  : (lang === 'fa' ? 'کمپینی یافت نشد' : 'No campaigns found')}
               </p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-xs text-primary hover:underline mt-2">
+                  {lang === 'fa' ? 'حذف فیلترها' : 'Clear filters'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -185,7 +314,7 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                     className="glass rounded-2xl overflow-hidden border border-primary/10 shadow-lg shadow-primary/5 cursor-pointer hover:shadow-primary/15 transition-all"
                     onClick={() => setExpandedId(isExpanded ? null : c.id)}
                   >
-                    {/* Image Carousel */}
+                    {/* Image */}
                     <div className="relative h-32 overflow-hidden bg-muted">
                       {c.cover_image ? (
                         <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover" />
@@ -200,7 +329,6 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                           <ChevronLeft size={14} />
                         </button>
                       )}
-                      {/* Status Badge */}
                       {isPending && (
                         <span className="absolute top-2 start-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
                           ⏳ {lang === 'fa' ? 'در انتظار' : 'Pending'}
@@ -209,6 +337,11 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                       {isApproved && (
                         <span className="absolute top-2 start-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
                           ✓ {lang === 'fa' ? 'تأیید شده' : 'Approved'}
+                        </span>
+                      )}
+                      {c.category && (
+                        <span className="absolute bottom-2 start-2 text-[8px] font-bold px-2 py-0.5 rounded-full glass backdrop-blur-sm">
+                          {c.category}
                         </span>
                       )}
                     </div>
@@ -220,7 +353,6 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                         {c.start_date && <span className="flex items-center gap-0.5"><Calendar size={10} />{toJalaliStr(c.start_date)}</span>}
                       </div>
 
-                      {/* Expanded Details */}
                       <AnimatePresence>
                         {isExpanded && (
                           <motion.div
@@ -230,12 +362,9 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                             className="overflow-hidden"
                           >
                             <div className="mt-3 space-y-2 text-xs">
-                              {/* Offer */}
                               {c.description && (
                                 <p className="text-muted-foreground leading-relaxed">{c.description}</p>
                               )}
-                              
-                              {/* Activity requirement */}
                               <div className="glass rounded-xl p-2.5 border border-primary/10">
                                 <p className="font-bold text-primary text-[11px] mb-1">
                                   <Sparkles size={12} className="inline me-1" />
@@ -247,8 +376,6 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                                     : '1 Reels + 3 Stories from location with brand tag'}
                                 </p>
                               </div>
-
-                              {/* Address & Phone */}
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <MapPin size={11} className="text-primary shrink-0" />
                                 <span className="text-[10px]">{c.city || 'تهران'}، خیابان ولیعصر، پلاک ۱۲۳</span>
@@ -258,7 +385,6 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
                                 <span className="text-[10px] font-medium" dir="ltr">021-1234567</span>
                               </div>
 
-                              {/* Apply Button */}
                               {!isPending && !isApproved && (
                                 <motion.button
                                   whileTap={{ scale: 0.95 }}
