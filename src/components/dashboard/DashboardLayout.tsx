@@ -9,10 +9,11 @@ import DashCampaigns from './DashCampaigns';
 import DashProfile from './DashProfile';
 import DashMessages from './DashMessages';
 import DashUploadReview from './DashUploadReview';
+import DashAnalytics from './DashAnalytics';
 import PendingApprovalScreen from '../shared/PendingApprovalScreen';
 import { Loader2 } from 'lucide-react';
 
-type TabId = 'home' | 'campaigns' | 'upload-review' | 'messages' | 'profile';
+type TabId = 'home' | 'campaigns' | 'upload-review' | 'messages' | 'profile' | 'analytics';
 
 const DashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
@@ -64,6 +65,7 @@ const DashboardLayout = () => {
       case 'upload-review': return <DashUploadReview onGoBack={goHome} />;
       case 'messages': return <DashMessages onGoBack={goHome} />;
       case 'profile': return <DashProfile onGoBack={goHome} />;
+      case 'analytics': return <DashAnalytics onGoBack={goHome} />;
     }
   };
 

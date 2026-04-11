@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,29 +16,17 @@ interface Notification {
 }
 
 const typeIcons: Record<string, any> = {
-  approval: CheckCircle2,
-  rejection: XCircle,
-  invite: Megaphone,
-  profile: AlertTriangle,
-  admin: MessageCircle,
-  campaign: Megaphone,
-  reminder: Clock,
-  application: UserCheck,
-  review: Star,
-  info: Bell,
+  approval: CheckCircle2, rejection: XCircle, invite: Megaphone,
+  profile: AlertTriangle, admin: MessageCircle, campaign: Megaphone,
+  reminder: Clock, application: UserCheck, review: Star, info: Bell,
 };
 
 const typeColors: Record<string, string> = {
-  approval: 'bg-green-500/10 text-green-400',
-  rejection: 'bg-red-500/10 text-red-400',
-  invite: 'bg-blue-500/10 text-blue-400',
-  profile: 'bg-amber-500/10 text-amber-400',
-  admin: 'bg-green-500/10 text-green-400',
-  campaign: 'bg-purple-500/10 text-purple-400',
-  reminder: 'bg-orange-500/10 text-orange-400',
-  application: 'bg-cyan-500/10 text-cyan-400',
-  review: 'bg-pink-500/10 text-pink-400',
-  info: 'bg-muted text-muted-foreground',
+  approval: 'bg-green-500/10 text-green-400', rejection: 'bg-red-500/10 text-red-400',
+  invite: 'bg-blue-500/10 text-blue-400', profile: 'bg-amber-500/10 text-amber-400',
+  admin: 'bg-green-500/10 text-green-400', campaign: 'bg-purple-500/10 text-purple-400',
+  reminder: 'bg-orange-500/10 text-orange-400', application: 'bg-cyan-500/10 text-cyan-400',
+  review: 'bg-pink-500/10 text-pink-400', info: 'bg-muted text-muted-foreground',
 };
 
 function timeAgo(dateStr: string, lang: string) {
@@ -63,7 +51,7 @@ const NotificationBell = ({ role }: NotificationBellProps) => {
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
@@ -74,16 +62,30 @@ const NotificationBell = ({ role }: NotificationBellProps) => {
       .limit(20);
     setNotifs((data as Notification[]) || []);
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 30s
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('user-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const newNotif = payload.new as Notification;
+          setNotifs(prev => [newNotif, ...prev]);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const unreadCount = notifs.filter(n => !n.is_read).length;
+  const unreadCount = useMemo(() => notifs.filter(n => !n.is_read).length, [notifs]);
 
   const markAsRead = async (id: string) => {
     await supabase.from('notifications').update({ is_read: true }).eq('id', id);

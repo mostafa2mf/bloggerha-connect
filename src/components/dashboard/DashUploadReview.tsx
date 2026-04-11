@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { syncUploadReview } from '@/lib/adminSync';
 import { Upload, ImagePlus, Loader2, CheckCircle2, Clock, X, MapPin } from 'lucide-react';
+import { validateFiles } from '@/lib/fileValidation';
 import { toast } from 'sonner';
 import BackButton from '@/components/shared/BackButton';
 
@@ -66,6 +67,8 @@ const DashUploadReview = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 4);
+    const validation = validateFiles(files, lang);
+    if (!validation.valid) { toast.error(validation.error); return; }
     setUploadFiles(files);
     setPreviews(files.map(f => URL.createObjectURL(f)));
   };

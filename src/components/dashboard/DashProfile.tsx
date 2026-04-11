@@ -4,6 +4,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Camera, Instagram, MapPin, Edit3, Save, Users, CheckCircle, AlertCircle, Upload, X, Image, AlertTriangle, Loader2, Key } from 'lucide-react';
+import { validateFile } from '@/lib/fileValidation';
+import { logAction } from '@/hooks/useAuditLog';
 import { toast } from 'sonner';
 import BackButton from '@/components/shared/BackButton';
 
@@ -69,6 +71,8 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+    const validation = validateFile(file, lang);
+    if (!validation.valid) { toast.error(validation.error); return; }
     const ext = file.name.split('.').pop();
     const path = `avatars/${user.id}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from('profile-images').upload(path, file);
@@ -76,6 +80,7 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
       const { data: urlData } = supabase.storage.from('profile-images').getPublicUrl(path);
       setAvatarUrl(urlData.publicUrl);
       await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('user_id', user.id);
+      logAction('avatar_updated');
       toast.success(lang === 'fa' ? 'عکس پروفایل بروز شد' : 'Avatar updated');
     }
   };
@@ -86,6 +91,8 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
     const remaining = MAX_IMAGES - images.length;
     const newUrls: string[] = [];
     for (const file of Array.from(files).slice(0, remaining)) {
+      const validation = validateFile(file, lang);
+      if (!validation.valid) { toast.error(validation.error); continue; }
       const ext = file.name.split('.').pop();
       const path = `gallery/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from('profile-images').upload(path, file);
@@ -129,6 +136,7 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
       setSaving(false);
       return;
     }
+    logAction('profile_updated', { fields: ['display_name', 'bio', 'instagram', 'city', 'security_keyword'] });
     setSaving(false);
     setEditing(false);
     toast.success(lang === 'fa' ? 'پروفایل ذخیره شد' : 'Profile saved');
