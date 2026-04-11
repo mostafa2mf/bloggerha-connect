@@ -54,7 +54,7 @@ const BusinessDashboardLayout = () => {
   }
 
   if (approvalStatus !== 'approved') {
-    return <PendingApprovalScreen />;
+    return <PendingApprovalScreen onApproved={() => { setApprovalStatus('approved'); }} />;
   }
 
   const goHome = () => setActiveTab('home');
