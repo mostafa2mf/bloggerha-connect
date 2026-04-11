@@ -30,7 +30,7 @@ const BizProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
     if (!user) return;
     supabase
       .from('profiles')
-      .select('username, display_name, avatar_url, images')
+      .select('username, display_name, avatar_url, images, security_keyword')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -39,7 +39,7 @@ const BizProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
           setDisplayName(data.display_name || '');
           setAvatarUrl(data.avatar_url);
           setImages(data.images || []);
-          setSecurityKeyword((data as any).security_keyword || '');
+          setSecurityKeyword(data.security_keyword || '');
         }
       });
   }, [user]);
