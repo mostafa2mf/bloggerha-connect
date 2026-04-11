@@ -115,13 +115,19 @@ const DashProfile = () => {
       return;
     }
     setSaving(true);
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').update({
       display_name: displayName,
       bio,
       instagram: insta,
       city,
       security_keyword: securityKeyword.trim() || null,
-    } as any).eq('user_id', user.id);
+    }).eq('user_id', user.id);
+    if (error) {
+      console.error('Profile update error:', error);
+      toast.error(lang === 'fa' ? 'خطا در ذخیره' : 'Save error');
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     setEditing(false);
     toast.success(lang === 'fa' ? 'پروفایل ذخیره شد' : 'Profile saved');
