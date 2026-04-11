@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Users, Megaphone, CalendarCheck, Loader2 } from 'lucide-react';
+import BackButton from '@/components/shared/BackButton';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -85,6 +86,7 @@ const BizAnalytics = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
         {lang === 'fa' ? 'آمار' : 'Analytics'}
       </motion.h1>

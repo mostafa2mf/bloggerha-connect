@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Building2, MapPin, Globe, Mail, Phone, Edit3, Save, Shield, Bell, Users, Image, Upload, X, CheckCircle, AlertCircle, AlertTriangle, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import BackButton from '@/components/shared/BackButton';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -101,6 +102,7 @@ const BizProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       {!isProfileComplete && (
         <motion.div variants={item} className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle size={20} className="text-amber-400 shrink-0" />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import BackButton from '@/components/shared/BackButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -102,6 +103,7 @@ const BizApplications = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
         {lang === 'fa' ? 'مهمان‌ها' : 'Guests'}
       </motion.h1>

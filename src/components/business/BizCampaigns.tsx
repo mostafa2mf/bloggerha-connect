@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import BackButton from '@/components/shared/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,6 +73,7 @@ const BizCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold gradient-text">{lang === 'fa' ? 'کمپین‌ها' : 'Campaigns'}</h1>
         <motion.button

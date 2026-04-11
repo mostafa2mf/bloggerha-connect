@@ -144,6 +144,7 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       {!isComplete && (
         <motion.div variants={item} className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle size={20} className="text-amber-400 shrink-0" />
