@@ -99,7 +99,7 @@ const Header = () => {
               </AnimatePresence>
             </button>
 
-            {isDashboard && user && (
+            {isDashboard && (
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
