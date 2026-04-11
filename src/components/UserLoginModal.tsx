@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Users, Building2, Mail, Lock, User as UserIcon, Loader2, MessageSquare } from 'lucide-react';
+import { X, Users, Building2, Mail, Lock, User as UserIcon, Loader2, MessageSquare, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminChatPanel from '@/components/shared/AdminChatPanel';
+import { useRateLimit } from '@/hooks/useRateLimit';
+import { logAction } from '@/hooks/useAuditLog';
 
 interface Props {
   isOpen: boolean;
@@ -26,6 +28,26 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
+  const { isLocked, remainingTime, checkLock, recordAttempt, resetAttempts, getAttemptsLeft } = useRateLimit();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [lockCountdown, setLockCountdown] = useState(0);
+
+  useEffect(() => {
+    if (isLocked) {
+      setLockCountdown(remainingTime);
+      timerRef.current = setInterval(() => {
+        setLockCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            checkLock();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }
+  }, [isLocked, remainingTime]);
 
   const handleSelectRole = (r: 'blogger' | 'business') => {
     setRole(r);
@@ -57,13 +79,26 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
       toast.error(t('auth.fillFields'));
       return;
     }
+    if (checkLock()) {
+      toast.error(lang === 'fa' ? `حساب قفل شده. ${lockCountdown} ثانیه صبر کنید.` : `Account locked. Wait ${lockCountdown}s.`);
+      return;
+    }
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      const locked = recordAttempt();
+      const left = getAttemptsLeft();
+      if (locked) {
+        toast.error(lang === 'fa' ? 'تعداد تلاش زیاد. ۵ دقیقه صبر کنید.' : 'Too many attempts. Wait 5 minutes.');
+      } else {
+        toast.error(`${error.message}${left > 0 ? ` (${left} ${lang === 'fa' ? 'تلاش باقی' : 'attempts left'})` : ''}`);
+      }
+      logAction('login_failed', { email });
       return;
     }
+    resetAttempts();
+    logAction('login_success', { email });
     toast.success(t('auth.loginSuccess'));
     onClose();
     await redirectByRole();
@@ -74,6 +109,10 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
       toast.error(t('auth.fillFields'));
       return;
     }
+    if (password.length < 8) {
+      toast.error(lang === 'fa' ? 'رمز عبور حداقل ۸ کاراکتر' : 'Password min 8 characters');
+      return;
+    }
     setLoading(true);
     const { error } = await signUp(email, password, role, username);
     setLoading(false);
@@ -81,6 +120,7 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
       toast.error(error.message);
       return;
     }
+    logAction('signup', { email, role });
     toast.success(t('auth.signupSuccess'));
     onClose();
     await redirectByRole(role);
@@ -163,6 +203,27 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
                     {isSignup ? t('auth.signup') : t('auth.login')}
                   </h2>
 
+                  {/* Rate limit warning */}
+                  {isLocked && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-destructive/10 border border-destructive/20"
+                    >
+                      <ShieldAlert size={20} className="text-destructive shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-destructive">
+                          {lang === 'fa' ? 'حساب موقتاً قفل شده' : 'Account temporarily locked'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {lang === 'fa'
+                            ? `${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, '0')} تا باز شدن`
+                            : `${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, '0')} until unlock`}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {isSignup && (
                     <div className="relative">
                       <UserIcon size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -200,7 +261,7 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
 
                   <button
                     onClick={isSignup ? handleSignup : handleLogin}
-                    disabled={loading}
+                    disabled={loading || isLocked}
                     className="w-full gradient-bg text-primary-foreground font-medium py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loading && <Loader2 size={16} className="animate-spin" />}
