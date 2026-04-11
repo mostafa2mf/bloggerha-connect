@@ -99,7 +99,7 @@ const Header = () => {
               </AnimatePresence>
             </button>
 
-            {isDashboard && user && (
+            {isDashboard && (
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
@@ -162,7 +162,7 @@ const Header = () => {
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                   {isDark ? (lang === 'fa' ? 'روشن' : 'Light') : (lang === 'fa' ? 'تاریک' : 'Dark')}
                 </button>
-                {isDashboard && user && (
+                {isDashboard && (
                   <button
                     onClick={() => { handleLogout(); setMobileOpen(false); }}
                     disabled={loggingOut}
