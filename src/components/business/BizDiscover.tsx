@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import BackButton from '@/components/shared/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,7 @@ type Blogger = {
 
 const otherCities = ['مشهد', 'اصفهان', 'شیراز', 'تبریز', 'کرج'];
 
-const BizDiscover = () => {
+const BizDiscover = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const [bloggers, setBloggers] = useState<Blogger[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +84,7 @@ const BizDiscover = () => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
         {lang === 'fa' ? 'بازدید بلاگرها' : 'Browse Bloggers'}
       </motion.h1>

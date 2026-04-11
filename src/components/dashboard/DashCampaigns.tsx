@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import BackButton from '@/components/shared/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,7 +26,7 @@ const fakeImages = [
   'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
 ];
 
-const DashCampaigns = () => {
+const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('available');
@@ -128,6 +129,7 @@ const DashCampaigns = () => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">
         {lang === 'fa' ? 'کمپین‌ها' : 'Campaigns'}
       </motion.h1>

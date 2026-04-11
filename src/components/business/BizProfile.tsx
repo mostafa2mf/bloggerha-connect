@@ -5,13 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Building2, MapPin, Globe, Mail, Phone, Edit3, Save, Shield, Bell, Users, Image, Upload, X, CheckCircle, AlertCircle, AlertTriangle, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import BackButton from '@/components/shared/BackButton';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 const MAX_IMAGES = 5;
 
-const BizProfile = () => {
+const BizProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -29,7 +30,7 @@ const BizProfile = () => {
     if (!user) return;
     supabase
       .from('profiles')
-      .select('username, display_name, avatar_url, images')
+      .select('username, display_name, avatar_url, images, security_keyword')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -38,7 +39,7 @@ const BizProfile = () => {
           setDisplayName(data.display_name || '');
           setAvatarUrl(data.avatar_url);
           setImages(data.images || []);
-          setSecurityKeyword((data as any).security_keyword || '');
+          setSecurityKeyword(data.security_keyword || '');
         }
       });
   }, [user]);
@@ -87,12 +88,18 @@ const BizProfile = () => {
   const handleSave = async () => {
     setSaving(true);
     if (user) {
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         username,
         display_name: displayName,
         images,
         security_keyword: securityKeyword.trim() || null,
-      } as any).eq('user_id', user.id);
+      }).eq('user_id', user.id);
+      if (error) {
+        console.error('Profile update error:', error);
+        toast.error(lang === 'fa' ? 'خطا در ذخیره' : 'Save error');
+        setSaving(false);
+        return;
+      }
     }
     setSaving(false);
     setEditing(false);
@@ -101,6 +108,7 @@ const BizProfile = () => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       {!isProfileComplete && (
         <motion.div variants={item} className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle size={20} className="text-amber-400 shrink-0" />
@@ -173,7 +181,19 @@ const BizProfile = () => {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Shield size={12} /> {lang === 'fa' ? 'کلمه کلیدی امنیتی (حداکثر ۲ کلمه)' : 'Security Keyword (max 2 words)'}</label>
-              <input value={securityKeyword} onChange={e => setSecurityKeyword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'} className="w-full glass rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60 transition-all" />
+              <input
+                value={securityKeyword}
+                onChange={e => setSecurityKeyword(e.target.value)}
+                disabled={!editing}
+                placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'}
+                className={`w-full glass rounded-xl p-3 text-sm font-medium focus:outline-none disabled:opacity-60 transition-all ring-2 ${
+                  securityKeyword.trim().length > 0
+                    ? 'ring-emerald-500/60 border-emerald-500/30'
+                    : editing
+                      ? 'ring-red-500/40 border-red-500/20'
+                      : 'ring-transparent'
+                }`}
+              />
             </div>
           </div>
         </motion.div>

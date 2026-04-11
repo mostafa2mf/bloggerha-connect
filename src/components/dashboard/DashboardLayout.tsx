@@ -55,13 +55,15 @@ const DashboardLayout = () => {
     return <PendingApprovalScreen />;
   }
 
+  const goHome = () => setActiveTab('home');
+
   const renderTab = () => {
     switch (activeTab) {
       case 'home': return <DashHome onNavigate={(tab) => setActiveTab(tab as TabId)} />;
-      case 'campaigns': return <DashCampaigns />;
-      case 'upload-review': return <DashUploadReview />;
-      case 'messages': return <DashMessages />;
-      case 'profile': return <DashProfile />;
+      case 'campaigns': return <DashCampaigns onGoBack={goHome} />;
+      case 'upload-review': return <DashUploadReview onGoBack={goHome} />;
+      case 'messages': return <DashMessages onGoBack={goHome} />;
+      case 'profile': return <DashProfile onGoBack={goHome} />;
     }
   };
 

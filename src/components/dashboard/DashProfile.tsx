@@ -5,13 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Camera, Instagram, MapPin, Edit3, Save, Users, CheckCircle, AlertCircle, Upload, X, Image, AlertTriangle, Loader2, Key } from 'lucide-react';
 import { toast } from 'sonner';
+import BackButton from '@/components/shared/BackButton';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 const MAX_IMAGES = 5;
 
-const DashProfile = () => {
+const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -48,7 +49,7 @@ const DashProfile = () => {
       setAvatarUrl(data.avatar_url);
       setImages(data.images || []);
       setFollowersCount(data.followers_count || 0);
-      setSecurityKeyword((data as any).security_keyword || '');
+      setSecurityKeyword(data.security_keyword || '');
     }
     setLoading(false);
   };
@@ -143,6 +144,7 @@ const DashProfile = () => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       {!isComplete && (
         <motion.div variants={item} className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle size={20} className="text-amber-400 shrink-0" />
@@ -248,7 +250,19 @@ const DashProfile = () => {
           </div>
           <div>
             <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><Key size={12} /> {lang === 'fa' ? 'کلمه کلیدی امنیتی (حداکثر ۲ کلمه)' : 'Security Keyword (max 2 words)'}</label>
-            <input value={securityKeyword} onChange={e => setSecurityKeyword(e.target.value)} disabled={!editing} placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'} className="w-full glass rounded-xl p-3 text-sm disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary/50" />
+            <input
+              value={securityKeyword}
+              onChange={e => setSecurityKeyword(e.target.value)}
+              disabled={!editing}
+              placeholder={lang === 'fa' ? 'مثلاً: گربه سفید' : 'e.g.: white cat'}
+              className={`w-full glass rounded-xl p-3 text-sm disabled:opacity-60 focus:outline-none transition-all ring-2 ${
+                securityKeyword.trim().length > 0
+                  ? 'ring-emerald-500/60 border-emerald-500/30'
+                  : editing
+                    ? 'ring-red-500/40 border-red-500/20'
+                    : 'ring-transparent'
+              }`}
+            />
           </div>
         </motion.div>
       </div>

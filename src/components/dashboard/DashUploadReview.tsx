@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { syncUploadReview } from '@/lib/adminSync';
 import { Upload, ImagePlus, Loader2, CheckCircle2, Clock, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import BackButton from '@/components/shared/BackButton';
 
 type UploadReview = {
   id: string;
@@ -20,7 +21,7 @@ type UploadReview = {
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const DashUploadReview = () => {
+const DashUploadReview = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [reviews, setReviews] = useState<UploadReview[]>([]);
@@ -134,6 +135,7 @@ const DashUploadReview = () => {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      {onGoBack && <BackButton onGoBack={onGoBack} />}
       <motion.h1 variants={item} className="text-2xl font-extrabold gradient-text">Upload Review</motion.h1>
 
       <motion.p variants={item} className="text-sm text-muted-foreground">
