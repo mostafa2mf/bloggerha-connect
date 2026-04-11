@@ -20,7 +20,7 @@ type Blogger = {
 
 const otherCities = ['مشهد', 'اصفهان', 'شیراز', 'تبریز', 'کرج'];
 
-const BizDiscover = () => {
+const BizDiscover = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const [bloggers, setBloggers] = useState<Blogger[]>([]);
   const [loading, setLoading] = useState(true);

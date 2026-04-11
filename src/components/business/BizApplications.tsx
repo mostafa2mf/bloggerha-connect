@@ -20,7 +20,7 @@ type Guest = {
   campaign_title?: string;
 };
 
-const BizApplications = () => {
+const BizApplications = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);

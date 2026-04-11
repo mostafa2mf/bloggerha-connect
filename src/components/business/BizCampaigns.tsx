@@ -32,7 +32,7 @@ const statusBadge: Record<string, string> = {
   archived: 'bg-muted text-muted-foreground',
 };
 
-const BizCampaigns = () => {
+const BizCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('all');
