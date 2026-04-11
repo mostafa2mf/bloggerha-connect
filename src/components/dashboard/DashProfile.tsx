@@ -49,7 +49,7 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
       setAvatarUrl(data.avatar_url);
       setImages(data.images || []);
       setFollowersCount(data.followers_count || 0);
-      setSecurityKeyword((data as any).security_keyword || '');
+      setSecurityKeyword(data.security_keyword || '');
     }
     setLoading(false);
   };
