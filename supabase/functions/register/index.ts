@@ -5,9 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// -----------------------------
-// Rate limiter
-// -----------------------------
 const RATE_LIMIT_WINDOW_MIN = 10;
 const RATE_LIMIT_MAX = 5;
 
@@ -39,19 +36,9 @@ async function recordAttempt(supabase: any, ip: string, email: string) {
   }
 }
 
-// -----------------------------
-// Helpers
-// -----------------------------
-function persianToEnglishDigits(str: string): string {
-  return str
-    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-}
-
 function normalizePhone(raw: string): string {
   let p = raw.trim();
   p = p.replace(/[\s\-_()]/g, "");
-  p = persianToEnglishDigits(p);
 
   if (p.startsWith("+98")) p = "0" + p.slice(3);
   else if (p.startsWith("98") && p.length === 12) p = "0" + p.slice(2);
@@ -99,14 +86,11 @@ function generateSystemPassword(length = 20): string {
   return out;
 }
 
-// -----------------------------
-// Validation
-// -----------------------------
 interface FieldErrors {
   [field: string]: string[];
 }
 
-const ALLOWED_BLOGGER_FOLLOWER_OPTIONS = ["10000-50000", "50000-100000", "100000-500000", "500000+"] as const;
+const ALLOWED_BLOGGER_FOLLOWER_OPTIONS = ["100000-500000", "500000+"] as const;
 
 const ALLOWED_GENDERS = ["male", "female"] as const;
 
@@ -121,18 +105,12 @@ function validateCommon(body: any, errors: FieldErrors) {
     if (fullName.length > 60) {
       (errors.full_name ??= []).push("نام و نام خانوادگی نمی‌تواند بیشتر از 60 کاراکتر باشد.");
     }
-    if (!/^[\u0600-\u06FFa-zA-Z\s\u200B-\u200D\u0640'\-]+$/.test(fullName)) {
-      (errors.full_name ??= []).push("نام فقط باید شامل حروف فارسی یا انگلیسی باشد.");
-    }
   }
 
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!email) {
     (errors.email ??= []).push("ایمیل الزامی است.");
   } else {
-    if (email.length > 254) {
-      (errors.email ??= []).push("ایمیل نمی‌تواند بیشتر از 254 کاراکتر باشد.");
-    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       (errors.email ??= []).push("فرمت ایمیل معتبر نیست.");
     }
@@ -172,25 +150,11 @@ function validateCommon(body: any, errors: FieldErrors) {
   const cat = typeof body.category === "string" ? collapseSpaces(body.category) : "";
   if (!cat) {
     (errors.category ??= []).push("دسته‌بندی الزامی است.");
-  } else {
-    if (cat.length < 2) {
-      (errors.category ??= []).push("دسته‌بندی باید حداقل 2 کاراکتر باشد.");
-    }
-    if (cat.length > 50) {
-      (errors.category ??= []).push("دسته‌بندی نمی‌تواند بیشتر از 50 کاراکتر باشد.");
-    }
   }
 
   const city = typeof body.city === "string" ? collapseSpaces(body.city) : "";
   if (!city) {
     (errors.city ??= []).push("شهر الزامی است.");
-  } else {
-    if (city.length < 2) {
-      (errors.city ??= []).push("نام شهر باید حداقل 2 کاراکتر باشد.");
-    }
-    if (city.length > 50) {
-      (errors.city ??= []).push("نام شهر نمی‌تواند بیشتر از 50 کاراکتر باشد.");
-    }
   }
 
   return {
@@ -220,7 +184,7 @@ function validateBlogger(body: any, errors: FieldErrors) {
   } else if (
     !ALLOWED_BLOGGER_FOLLOWER_OPTIONS.includes(followersCount as (typeof ALLOWED_BLOGGER_FOLLOWER_OPTIONS)[number])
   ) {
-    (errors.followers_count ??= []).push("بازه تعداد فالوور معتبر نیست.");
+    (errors.followers_count ??= []).push("تعداد فالوورها مجاز نیست.");
   }
 
   return {
@@ -234,21 +198,13 @@ function validateBusiness(body: any, errors: FieldErrors) {
 
   if (!brandName) {
     (errors.brand_name ??= []).push("نام برند الزامی است.");
-  } else {
-    if (brandName.length < 2) {
-      (errors.brand_name ??= []).push("نام برند باید حداقل 2 کاراکتر باشد.");
-    }
-    if (brandName.length > 80) {
-      (errors.brand_name ??= []).push("نام برند نمی‌تواند بیشتر از 80 کاراکتر باشد.");
-    }
+  } else if (brandName.length < 2) {
+    (errors.brand_name ??= []).push("نام برند باید حداقل 2 کاراکتر باشد.");
   }
 
   return { brandName };
 }
 
-// -----------------------------
-// Handler
-// -----------------------------
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -326,9 +282,7 @@ Deno.serve(async (req) => {
       .eq("phone", common.phone)
       .maybeSingle();
 
-    if (existingPhoneError) {
-      throw existingPhoneError;
-    }
+    if (existingPhoneError) throw existingPhoneError;
 
     if (existingPhone) {
       return new Response(
@@ -352,9 +306,7 @@ Deno.serve(async (req) => {
       .eq("email", common.email)
       .maybeSingle();
 
-    if (existingEmailError) {
-      throw existingEmailError;
-    }
+    if (existingEmailError) throw existingEmailError;
 
     if (existingEmail) {
       return new Response(
@@ -434,60 +386,25 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(userId);
-
-      if (profileError.message?.includes("profiles_phone_unique") || profileError.code === "23505") {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "ثبت‌نام انجام نشد.",
-            errors: {
-              phone: ["با این شماره موبایل قبلاً حساب ساخته شده است."],
-            },
-          }),
-          {
-            status: 409,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
       throw profileError;
     }
 
-    const { error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
-
-    if (roleError) {
-      console.error("user_roles upsert error:", roleError);
-    }
+    await supabaseAdmin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
 
     const message =
       role === "blogger"
         ? "ثبت‌نام بلاگر با موفقیت انجام شد و حساب شما در انتظار بررسی ادمین است."
         : "ثبت‌نام کسب‌وکار با موفقیت انجام شد.";
 
-    const responseData: Record<string, any> = {
-      role,
-      status: approvalStatus === "pending" ? "pending_review" : "active",
-      instagram_username: common.instagramUsername,
-    };
-
-    if (role === "blogger" && bloggerData) {
-      responseData.review_status = "pending";
-      responseData.followers_count = bloggerData.followersCount;
-      responseData.gender = bloggerData.gender;
-    }
-
-    if (role === "business" && businessData) {
-      responseData.brand_name = businessData.brandName;
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
         message,
-        data: responseData,
+        data: {
+          role,
+          status: approvalStatus === "pending" ? "pending_review" : "active",
+          instagram_username: common.instagramUsername,
+        },
       }),
       {
         status: 201,
