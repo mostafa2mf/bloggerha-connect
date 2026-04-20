@@ -1,8 +1,8 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Eye, EyeOff, User, Mail, Phone, Lock, Instagram, Tag, Loader2, Users } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, User, Mail, Phone, Lock, Instagram, Tag, Loader2, Users, MapPin, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -10,6 +10,8 @@ import {
   bloggerRegisterSchema,
   normalizePhone,
   persianToEnglishDigits,
+  extractInstagramUsername,
+  IRAN_CITIES,
 } from '@/lib/registerValidation';
 import type { ZodError } from 'zod';
 
