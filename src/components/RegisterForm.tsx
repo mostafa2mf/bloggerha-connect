@@ -129,15 +129,15 @@ const RegisterForm = ({ type }: Props) => {
         });
 
         if (loginError) {
-          toast.success(response.message);
+          toast.success(response2.message);
           setTimeout(() => navigate('/'), 2000);
         } else {
-          toast.success(response.message);
+          toast.success(response2.message);
           setTimeout(() => navigate('/dashboard/business'), 1500);
         }
       } else {
         // Blogger: pending review — keep them logged out
-        toast.success(response.message, {
+        toast.success(response2.message, {
           description: 'بررسی توسط ادمین معمولاً بین ۱ تا ۲۴ ساعت طول می‌کشد. پس از تأیید می‌توانید وارد شوید.',
           duration: 8000,
         });
