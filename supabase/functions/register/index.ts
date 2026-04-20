@@ -6,22 +6,23 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// --- In-memory rate limiter (per IP) ---
+// --- Persistent rate limiter (DB-backed, survives cold starts) ---
 // 5 registrations per IP per 10 minutes
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_WINDOW_MIN = 10;
 const RATE_LIMIT_MAX = 5;
-const ipHits = new Map<string, number[]>();
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  if (hits.length >= RATE_LIMIT_MAX) {
-    ipHits.set(ip, hits);
-    return false;
-  }
-  hits.push(now);
-  ipHits.set(ip, hits);
-  return true;
+async function checkRateLimit(supabase: any, ip: string): Promise<boolean> {
+  const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MIN * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from("registration_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("ip_address", ip)
+    .gte("created_at", since);
+  return (count ?? 0) < RATE_LIMIT_MAX;
+}
+
+async function recordAttempt(supabase: any, ip: string, email: string) {
+  await supabase.from("registration_attempts").insert({ ip_address: ip, email });
 }
 
 // --- Normalization helpers ---
@@ -156,19 +157,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Rate limiting per IP
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
       || req.headers.get("cf-connecting-ip")
       || "unknown";
-    if (!checkRateLimit(ip)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "تعداد درخواست‌های ثبت‌نام از این IP زیاد بوده است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const body = await req.json();
     const role = body.role; // 'blogger' | 'business'
@@ -183,7 +174,7 @@ Deno.serve(async (req) => {
     const errors: FieldErrors = {};
     const normalized = validateCommon(body, errors);
 
-    // Blogger-specific: followers_count
+    // Blogger-specific: followers_count (cap lowered to a realistic ceiling)
     let followersCount = 0;
     if (role === "blogger") {
       const fc = body.followers_count;
@@ -195,7 +186,7 @@ Deno.serve(async (req) => {
           (errors.followers_count ??= []).push("تعداد فالوور باید فقط عدد باشد.");
         } else if (num < 100000) {
           (errors.followers_count ??= []).push("حداقل تعداد فالوور برای ثبت‌نام بلاگر ۱۰۰٬۰۰۰ است.");
-        } else if (num > 200000000) {
+        } else if (num > 50000000) {
           (errors.followers_count ??= []).push("تعداد فالوور واردشده معتبر نیست.");
         } else {
           followersCount = num;
@@ -210,11 +201,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase admin client
+    // Create Supabase admin client (service role bypasses RLS)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Persistent rate limit check (DB-backed, survives cold starts)
+    if (!(await checkRateLimit(supabaseAdmin, ip))) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "تعداد درخواست‌های ثبت‌نام از این IP زیاد بوده است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // Record this attempt regardless of outcome
+    await recordAttempt(supabaseAdmin, ip, normalized.email);
 
     // Pre-check duplicates (phone & email) before creating auth user
     const { data: existingPhone } = await supabaseAdmin
@@ -323,7 +327,10 @@ Deno.serve(async (req) => {
       throw profileError;
     }
 
-    // Success response
+    // Ensure user_roles entry exists (trigger should already do this, this is a safety net)
+    await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
     const message =
       role === "blogger"
         ? "ثبت‌نام بلاگر با موفقیت انجام شد و حساب شما در انتظار بررسی ادمین است."
