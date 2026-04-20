@@ -44,6 +44,9 @@ const RegisterForm = ({ type }: Props) => {
   const [instagram, setInstagram] = useState('');
   const [followersCount, setFollowersCount] = useState('');
   const [category, setCategory] = useState('');
+  const [city, setCity] = useState('تهران');
+
+  const igUsername = useMemo(() => extractInstagramUsername(instagram), [instagram]);
 
   const title = type === 'blogger' ? 'ثبت‌نام بلاگر' : 'ثبت‌نام کسب‌وکار';
 
