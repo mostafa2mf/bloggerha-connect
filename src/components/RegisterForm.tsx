@@ -1,8 +1,8 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Eye, EyeOff, User, Mail, Phone, Lock, Instagram, Tag, Loader2, Users } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, User, Mail, Phone, Lock, Instagram, Tag, Loader2, Users, MapPin, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -10,6 +10,8 @@ import {
   bloggerRegisterSchema,
   normalizePhone,
   persianToEnglishDigits,
+  extractInstagramUsername,
+  IRAN_CITIES,
 } from '@/lib/registerValidation';
 import type { ZodError } from 'zod';
 
@@ -42,6 +44,9 @@ const RegisterForm = ({ type }: Props) => {
   const [instagram, setInstagram] = useState('');
   const [followersCount, setFollowersCount] = useState('');
   const [category, setCategory] = useState('');
+  const [city, setCity] = useState('تهران');
+
+  const igUsername = useMemo(() => extractInstagramUsername(instagram), [instagram]);
 
   const title = type === 'blogger' ? 'ثبت‌نام بلاگر' : 'ثبت‌نام کسب‌وکار';
 
@@ -70,6 +75,7 @@ const RegisterForm = ({ type }: Props) => {
       password,
       instagram_url: instagram,
       category,
+      city,
     };
     if (type === 'blogger') {
       rawData.followers_count = followersCount;
@@ -275,7 +281,15 @@ const RegisterForm = ({ type }: Props) => {
                 className={getInputClass('instagram_url')}
                 dir="ltr"
               />
+              {igUsername && !fieldErrors['instagram_url'] && (
+                <CheckCircle2 size={16} className="absolute end-3 top-1/2 -translate-y-1/2 text-green-500" />
+              )}
             </div>
+            {igUsername && !fieldErrors['instagram_url'] && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1" dir="ltr">
+                ✓ @{igUsername}
+              </p>
+            )}
             <FieldError field="instagram_url" />
           </div>
 
@@ -297,6 +311,23 @@ const RegisterForm = ({ type }: Props) => {
               <FieldError field="followers_count" />
             </div>
           )}
+
+          {/* City */}
+          <div>
+            <div className="relative">
+              <MapPin size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={getInputClass('city') + ' appearance-none cursor-pointer'}
+              >
+                {IRAN_CITIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <FieldError field="city" />
+          </div>
 
           {/* Category */}
           <div>

@@ -6,6 +6,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// --- In-memory rate limiter (per IP) ---
+// 5 registrations per IP per 10 minutes
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 5;
+const ipHits = new Map<string, number[]>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (hits.length >= RATE_LIMIT_MAX) {
+    ipHits.set(ip, hits);
+    return false;
+  }
+  hits.push(now);
+  ipHits.set(ip, hits);
+  return true;
+}
+
 // --- Normalization helpers ---
 function persianToEnglishDigits(str: string): string {
   return str
@@ -26,6 +44,20 @@ function collapseSpaces(s: string): string {
   return s.trim().replace(/\s+/g, " ");
 }
 
+function extractInstagramUsername(raw: string): string | null {
+  if (!raw) return null;
+  let s = raw.trim().replace(/\s+/g, "");
+  if (s.startsWith("@")) s = s.slice(1);
+  s = s.replace(/^https?:\/\//i, "");
+  s = s.replace(/^www\./i, "");
+  s = s.replace(/^instagram\.com\//i, "");
+  s = s.split(/[/?#]/)[0];
+  if (!/^[A-Za-z0-9._]{1,30}$/.test(s)) return null;
+  const reserved = ["p", "reel", "reels", "tv", "explore", "stories", "accounts", "direct"];
+  if (reserved.includes(s.toLowerCase())) return null;
+  return s.toLowerCase();
+}
+
 // --- Validation ---
 interface FieldErrors {
   [field: string]: string[];
@@ -39,7 +71,7 @@ function validateCommon(body: any, errors: FieldErrors) {
   } else {
     if (name.length < 2) (errors.full_name ??= []).push("نام باید حداقل 2 کاراکتر باشد.");
     if (name.length > 60) (errors.full_name ??= []).push("نام نمی‌تواند بیشتر از 60 کاراکتر باشد.");
-    if (!/^[\u0600-\u06FFa-zA-Z\s\u200C\-]+$/.test(name))
+    if (!/^[\u0600-\u06FFa-zA-Z\s\u200B-\u200D\u0640'\-]+$/.test(name))
       (errors.full_name ??= []).push("نام فقط باید شامل حروف فارسی یا انگلیسی باشد.");
   }
 
@@ -55,10 +87,11 @@ function validateCommon(body: any, errors: FieldErrors) {
 
   // phone
   const rawPhone = typeof body.phone === "string" ? body.phone : "";
+  let phone = "";
   if (!rawPhone.trim()) {
     (errors.phone ??= []).push("شماره موبایل الزامی است.");
   } else {
-    const phone = normalizePhone(rawPhone);
+    phone = normalizePhone(rawPhone);
     if (!/^\d+$/.test(phone)) {
       (errors.phone ??= []).push("شماره موبایل معتبر نیست.");
     } else if (!phone.startsWith("09")) {
@@ -75,16 +108,25 @@ function validateCommon(body: any, errors: FieldErrors) {
   } else {
     if (password.length < 8) (errors.password ??= []).push("رمز عبور باید حداقل 8 کاراکتر باشد.");
     if (password.length > 72) (errors.password ??= []).push("رمز عبور نمی‌تواند بیشتر از 72 کاراکتر باشد.");
-    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password))
+    const normalizedPw = persianToEnglishDigits(password);
+    if (!/[A-Za-z]/.test(normalizedPw) || !/\d/.test(normalizedPw))
       (errors.password ??= []).push("رمز عبور باید شامل حداقل یک حرف و یک عدد باشد.");
   }
 
-  // instagram_url
-  const ig = typeof body.instagram_url === "string" ? body.instagram_url.trim() : "";
-  if (!ig) {
+  // instagram_url - extract & normalize
+  const igRaw = typeof body.instagram_url === "string" ? body.instagram_url : "";
+  let instagramUsername = "";
+  let instagramUrl = "";
+  if (!igRaw.trim()) {
     (errors.instagram_url ??= []).push("لینک اینستاگرام الزامی است.");
-  } else if (!/^(https?:\/\/)?(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?$/.test(ig)) {
-    (errors.instagram_url ??= []).push("لینک اینستاگرام معتبر نیست.");
+  } else {
+    const username = extractInstagramUsername(igRaw);
+    if (!username) {
+      (errors.instagram_url ??= []).push("لینک اینستاگرام معتبر نیست.");
+    } else {
+      instagramUsername = username;
+      instagramUrl = `https://instagram.com/${username}`;
+    }
   }
 
   // category
@@ -96,7 +138,16 @@ function validateCommon(body: any, errors: FieldErrors) {
     if (cat.length > 50) (errors.category ??= []).push("دسته‌بندی نمی‌تواند بیشتر از 50 کاراکتر باشد.");
   }
 
-  return { name, email, phone: normalizePhone(rawPhone), password, instagram: ig, category: cat };
+  // city
+  const city = typeof body.city === "string" ? collapseSpaces(body.city) : "";
+  if (!city) {
+    (errors.city ??= []).push("شهر الزامی است.");
+  } else {
+    if (city.length < 2) (errors.city ??= []).push("نام شهر باید حداقل 2 کاراکتر باشد.");
+    if (city.length > 50) (errors.city ??= []).push("نام شهر نمی‌تواند بیشتر از 50 کاراکتر باشد.");
+  }
+
+  return { name, email, phone, password, instagram: instagramUrl, instagramUsername, category: cat, city };
 }
 
 Deno.serve(async (req) => {
@@ -105,6 +156,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limiting per IP
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+      || req.headers.get("cf-connecting-ip")
+      || "unknown";
+    if (!checkRateLimit(ip)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "تعداد درخواست‌های ثبت‌نام از این IP زیاد بوده است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const role = body.role; // 'blogger' | 'business'
 
@@ -151,7 +216,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check duplicate phone
+    // Pre-check duplicates (phone & email) before creating auth user
     const { data: existingPhone } = await supabaseAdmin
       .from("profiles")
       .select("id")
@@ -169,7 +234,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create auth user (Supabase handles password hashing with bcrypt)
+    const { data: existingEmail } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", normalized.email)
+      .maybeSingle();
+
+    if (existingEmail) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Registration failed.",
+          errors: { email: ["با این ایمیل قبلاً حساب ساخته شده است."] },
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create auth user. email_confirm: true keeps the auto-login flow working
+    // (real email verification can be enabled later by setting this to false).
     const approvalStatus = role === "blogger" ? "pending" : "approved";
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: normalized.email,
@@ -197,12 +280,13 @@ Deno.serve(async (req) => {
 
     const userId = authData.user!.id;
 
-    // Update the profile created by trigger with additional fields
+    // Update profile (created by trigger) with full registration data
     const profileUpdate: Record<string, any> = {
       phone: normalized.phone,
       email: normalized.email,
       instagram: normalized.instagram,
       category: normalized.category,
+      city: normalized.city,
       display_name: normalized.name,
       username: normalized.name,
       role,
@@ -221,8 +305,12 @@ Deno.serve(async (req) => {
     if (profileError) {
       // Rollback: delete the auth user
       await supabaseAdmin.auth.admin.deleteUser(userId);
-      
-      if (profileError.message?.includes("profiles_phone_unique")) {
+
+      // Unique violation on phone (race condition safety net)
+      if (
+        profileError.message?.includes("profiles_phone_unique") ||
+        profileError.code === "23505"
+      ) {
         return new Response(
           JSON.stringify({
             success: false,
@@ -241,7 +329,11 @@ Deno.serve(async (req) => {
         ? "ثبت‌نام بلاگر با موفقیت انجام شد و حساب شما در انتظار بررسی ادمین است."
         : "ثبت‌نام کسب‌وکار با موفقیت انجام شد.";
 
-    const responseData: any = { role, status: approvalStatus === "pending" ? "pending_review" : "active" };
+    const responseData: any = {
+      role,
+      status: approvalStatus === "pending" ? "pending_review" : "active",
+      instagram_username: normalized.instagramUsername,
+    };
     if (role === "blogger") responseData.review_status = "pending";
 
     return new Response(
