@@ -13,20 +13,30 @@ const RATE_LIMIT_MAX = 5;
 
 async function checkRateLimit(supabase: any, ip: string): Promise<boolean> {
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MIN * 60 * 1000).toISOString();
-  const { count } = await supabase
+
+  const { count, error } = await supabase
     .from("registration_attempts")
     .select("id", { count: "exact", head: true })
     .eq("ip_address", ip)
     .gte("created_at", since);
 
+  if (error) {
+    console.error("Rate limit check error:", error);
+    return true;
+  }
+
   return (count ?? 0) < RATE_LIMIT_MAX;
 }
 
 async function recordAttempt(supabase: any, ip: string, email: string) {
-  await supabase.from("registration_attempts").insert({
+  const { error } = await supabase.from("registration_attempts").insert({
     ip_address: ip,
     email,
   });
+
+  if (error) {
+    console.error("Record attempt error:", error);
+  }
 }
 
 // -----------------------------
@@ -67,7 +77,6 @@ function extractInstagramUsername(raw: string): string | null {
   if (!/^[A-Za-z0-9._]{1,30}$/.test(s)) return null;
 
   const reserved = ["p", "reel", "reels", "tv", "explore", "stories", "accounts", "direct"];
-
   if (reserved.includes(s.toLowerCase())) return null;
 
   return s.toLowerCase();
@@ -83,7 +92,6 @@ function generateSystemPassword(length = 20): string {
     out += chars[array[i] % chars.length];
   }
 
-  // ensure at least one letter, one number, one special char
   if (!/[A-Za-z]/.test(out)) out += "A";
   if (!/\d/.test(out)) out += "2";
   if (!/[!@#$%^&*]/.test(out)) out += "!";
@@ -198,6 +206,7 @@ function validateCommon(body: any, errors: FieldErrors) {
 
 function validateBlogger(body: any, errors: FieldErrors) {
   const gender = typeof body.gender === "string" ? body.gender.trim() : "";
+
   if (!gender) {
     (errors.gender ??= []).push("جنسیت الزامی است.");
   } else if (!ALLOWED_GENDERS.includes(gender as (typeof ALLOWED_GENDERS)[number])) {
@@ -311,11 +320,15 @@ Deno.serve(async (req) => {
 
     await recordAttempt(supabaseAdmin, ip, common.email);
 
-    const { data: existingPhone } = await supabaseAdmin
+    const { data: existingPhone, error: existingPhoneError } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("phone", common.phone)
       .maybeSingle();
+
+    if (existingPhoneError) {
+      throw existingPhoneError;
+    }
 
     if (existingPhone) {
       return new Response(
@@ -333,11 +346,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: existingEmail } = await supabaseAdmin
+    const { data: existingEmail, error: existingEmailError } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("email", common.email)
       .maybeSingle();
+
+    if (existingEmailError) {
+      throw existingEmailError;
+    }
 
     if (existingEmail) {
       return new Response(
@@ -437,7 +454,13 @@ Deno.serve(async (req) => {
       throw profileError;
     }
 
-    await supabaseAdmin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+
+    if (roleError) {
+      console.error("user_roles upsert error:", roleError);
+    }
 
     const message =
       role === "blogger"
