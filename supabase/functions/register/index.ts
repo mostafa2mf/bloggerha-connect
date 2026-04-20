@@ -6,22 +6,23 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// --- In-memory rate limiter (per IP) ---
+// --- Persistent rate limiter (DB-backed, survives cold starts) ---
 // 5 registrations per IP per 10 minutes
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_WINDOW_MIN = 10;
 const RATE_LIMIT_MAX = 5;
-const ipHits = new Map<string, number[]>();
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  if (hits.length >= RATE_LIMIT_MAX) {
-    ipHits.set(ip, hits);
-    return false;
-  }
-  hits.push(now);
-  ipHits.set(ip, hits);
-  return true;
+async function checkRateLimit(supabase: any, ip: string): Promise<boolean> {
+  const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MIN * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from("registration_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("ip_address", ip)
+    .gte("created_at", since);
+  return (count ?? 0) < RATE_LIMIT_MAX;
+}
+
+async function recordAttempt(supabase: any, ip: string, email: string) {
+  await supabase.from("registration_attempts").insert({ ip_address: ip, email });
 }
 
 // --- Normalization helpers ---
