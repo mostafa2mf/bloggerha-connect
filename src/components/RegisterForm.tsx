@@ -95,20 +95,28 @@ const RegisterForm = ({ type }: Props) => {
         body: { ...rawData, role: type },
       });
 
-      if (fnError) {
+      // Edge function may return non-2xx with a structured body. Try to read it via context first.
+      const ctx: any = (fnError as any)?.context;
+      let payload: any = response;
+      if (fnError && ctx && typeof ctx.json === 'function') {
+        try { payload = await ctx.json(); } catch { /* ignore */ }
+      }
+
+      if (fnError && !payload?.errors && !payload?.message) {
         toast.error('خطایی در پردازش درخواست رخ داد. لطفاً دوباره تلاش کنید.');
         setLoading(false);
         return;
       }
 
-      if (!response.success) {
-        if (response.errors && Object.keys(response.errors).length > 0) {
-          setFieldErrors(response.errors);
+      if (!payload?.success) {
+        if (payload?.errors && Object.keys(payload.errors).length > 0) {
+          setFieldErrors(payload.errors);
         }
-        toast.error(response.message || 'ثبت‌نام انجام نشد.');
+        toast.error(payload?.message || 'ثبت‌نام انجام نشد.');
         setLoading(false);
         return;
       }
+      const response2 = payload;
 
       // For businesses (auto-approved): auto-login and redirect to dashboard.
       // For bloggers (pending review): do NOT auto-login. Show clear pending message
@@ -121,15 +129,15 @@ const RegisterForm = ({ type }: Props) => {
         });
 
         if (loginError) {
-          toast.success(response.message);
+          toast.success(response2.message);
           setTimeout(() => navigate('/'), 2000);
         } else {
-          toast.success(response.message);
+          toast.success(response2.message);
           setTimeout(() => navigate('/dashboard/business'), 1500);
         }
       } else {
         // Blogger: pending review — keep them logged out
-        toast.success(response.message, {
+        toast.success(response2.message, {
           description: 'بررسی توسط ادمین معمولاً بین ۱ تا ۲۴ ساعت طول می‌کشد. پس از تأیید می‌توانید وارد شوید.',
           duration: 8000,
         });
