@@ -281,7 +281,15 @@ const RegisterForm = ({ type }: Props) => {
                 className={getInputClass('instagram_url')}
                 dir="ltr"
               />
+              {igUsername && !fieldErrors['instagram_url'] && (
+                <CheckCircle2 size={16} className="absolute end-3 top-1/2 -translate-y-1/2 text-green-500" />
+              )}
             </div>
+            {igUsername && !fieldErrors['instagram_url'] && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1" dir="ltr">
+                ✓ @{igUsername}
+              </p>
+            )}
             <FieldError field="instagram_url" />
           </div>
 
@@ -303,6 +311,23 @@ const RegisterForm = ({ type }: Props) => {
               <FieldError field="followers_count" />
             </div>
           )}
+
+          {/* City */}
+          <div>
+            <div className="relative">
+              <MapPin size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={getInputClass('city') + ' appearance-none cursor-pointer'}
+              >
+                {IRAN_CITIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <FieldError field="city" />
+          </div>
 
           {/* Category */}
           <div>
