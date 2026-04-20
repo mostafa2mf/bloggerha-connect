@@ -157,19 +157,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Rate limiting per IP
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
       || req.headers.get("cf-connecting-ip")
       || "unknown";
-    if (!checkRateLimit(ip)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "تعداد درخواست‌های ثبت‌نام از این IP زیاد بوده است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const body = await req.json();
     const role = body.role; // 'blogger' | 'business'
@@ -184,7 +174,7 @@ Deno.serve(async (req) => {
     const errors: FieldErrors = {};
     const normalized = validateCommon(body, errors);
 
-    // Blogger-specific: followers_count
+    // Blogger-specific: followers_count (cap lowered to a realistic ceiling)
     let followersCount = 0;
     if (role === "blogger") {
       const fc = body.followers_count;
@@ -196,7 +186,7 @@ Deno.serve(async (req) => {
           (errors.followers_count ??= []).push("تعداد فالوور باید فقط عدد باشد.");
         } else if (num < 100000) {
           (errors.followers_count ??= []).push("حداقل تعداد فالوور برای ثبت‌نام بلاگر ۱۰۰٬۰۰۰ است.");
-        } else if (num > 200000000) {
+        } else if (num > 50000000) {
           (errors.followers_count ??= []).push("تعداد فالوور واردشده معتبر نیست.");
         } else {
           followersCount = num;
@@ -211,11 +201,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase admin client
+    // Create Supabase admin client (service role bypasses RLS)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Persistent rate limit check (DB-backed, survives cold starts)
+    if (!(await checkRateLimit(supabaseAdmin, ip))) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "تعداد درخواست‌های ثبت‌نام از این IP زیاد بوده است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // Record this attempt regardless of outcome
+    await recordAttempt(supabaseAdmin, ip, normalized.email);
 
     // Pre-check duplicates (phone & email) before creating auth user
     const { data: existingPhone } = await supabaseAdmin
