@@ -8,8 +8,6 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   businessRegisterSchema,
   bloggerRegisterSchema,
-  normalizePhone,
-  persianToEnglishDigits,
   extractInstagramUsername,
   IRAN_CITIES,
 } from '@/lib/registerValidation';
