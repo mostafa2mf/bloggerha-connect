@@ -90,7 +90,10 @@ interface FieldErrors {
   [field: string]: string[];
 }
 
-const ALLOWED_BLOGGER_FOLLOWER_OPTIONS = ["100000-500000", "500000+"] as const;
+const FOLLOWER_VALUE_TO_NUMBER: Record<string, number> = {
+  "100k-500k": 100000,
+  "500k+": 500000,
+};
 
 const ALLOWED_GENDERS = ["male", "female"] as const;
 
@@ -110,10 +113,8 @@ function validateCommon(body: any, errors: FieldErrors) {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!email) {
     (errors.email ??= []).push("ایمیل الزامی است.");
-  } else {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      (errors.email ??= []).push("فرمت ایمیل معتبر نیست.");
-    }
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    (errors.email ??= []).push("فرمت ایمیل معتبر نیست.");
   }
 
   const rawPhone = typeof body.phone === "string" ? body.phone : "";
@@ -177,19 +178,23 @@ function validateBlogger(body: any, errors: FieldErrors) {
     (errors.gender ??= []).push("جنسیت انتخاب‌شده معتبر نیست.");
   }
 
-  const followersCount = typeof body.followers_count === "string" ? body.followers_count.trim() : "";
+  const followersKey = typeof body.followers_count === "string" ? body.followers_count.trim() : "";
 
-  if (!followersCount) {
+  if (!followersKey) {
     (errors.followers_count ??= []).push("بازه تعداد فالوور الزامی است.");
-  } else if (
-    !ALLOWED_BLOGGER_FOLLOWER_OPTIONS.includes(followersCount as (typeof ALLOWED_BLOGGER_FOLLOWER_OPTIONS)[number])
-  ) {
+    return { gender, followersCountNumber: 0 };
+  }
+
+  const followersCountNumber = FOLLOWER_VALUE_TO_NUMBER[followersKey];
+
+  if (!followersCountNumber) {
     (errors.followers_count ??= []).push("تعداد فالوورها مجاز نیست.");
+    return { gender, followersCountNumber: 0 };
   }
 
   return {
     gender,
-    followersCount,
+    followersCountNumber,
   };
 }
 
@@ -234,7 +239,7 @@ Deno.serve(async (req) => {
     const errors: FieldErrors = {};
     const common = validateCommon(body, errors);
 
-    let bloggerData: { gender: string; followersCount: string } | null = null;
+    let bloggerData: { gender: string; followersCountNumber: number } | null = null;
     let businessData: { brandName: string } | null = null;
 
     if (role === "blogger") {
@@ -375,7 +380,7 @@ Deno.serve(async (req) => {
 
     if (role === "blogger" && bloggerData) {
       profileUpdate.gender = bloggerData.gender;
-      profileUpdate.followers_count = bloggerData.followersCount;
+      profileUpdate.followers_count = bloggerData.followersCountNumber;
     }
 
     if (role === "business" && businessData) {
