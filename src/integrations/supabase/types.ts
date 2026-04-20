@@ -435,6 +435,50 @@ export type Database = {
       }
     }
     Functions: {
+      get_public_profile: {
+        Args: { _user_id: string }
+        Returns: {
+          approval_status: string
+          avatar_url: string
+          bio: string
+          category: string
+          city: string
+          created_at: string
+          display_name: string
+          engagement_rate: number
+          followers_count: number
+          id: string
+          images: string[]
+          instagram: string
+          profile_completion: number
+          role: string
+          updated_at: string
+          user_id: string
+          username: string
+        }[]
+      }
+      get_public_profiles: {
+        Args: never
+        Returns: {
+          approval_status: string
+          avatar_url: string
+          bio: string
+          category: string
+          city: string
+          created_at: string
+          display_name: string
+          engagement_rate: number
+          followers_count: number
+          id: string
+          images: string[]
+          instagram: string
+          profile_completion: number
+          role: string
+          updated_at: string
+          user_id: string
+          username: string
+        }[]
+      }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
