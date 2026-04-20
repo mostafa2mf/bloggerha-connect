@@ -327,7 +327,10 @@ Deno.serve(async (req) => {
       throw profileError;
     }
 
-    // Success response
+    // Ensure user_roles entry exists (trigger should already do this, this is a safety net)
+    await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
     const message =
       role === "blogger"
         ? "ثبت‌نام بلاگر با موفقیت انجام شد و حساب شما در انتظار بررسی ادمین است."
