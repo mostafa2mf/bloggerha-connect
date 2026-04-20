@@ -112,23 +112,30 @@ const RegisterForm = ({ type }: Props) => {
         return;
       }
 
-      // Auto-login after successful registration
-      const normalizedPhone = normalizePhone(phone);
-      const normalizedEmail = email.trim().toLowerCase();
+      // For businesses (auto-approved): auto-login and redirect to dashboard.
+      // For bloggers (pending review): do NOT auto-login. Show clear pending message
+      // and send them to the login page so they can sign in once an admin approves.
+      if (type === 'business') {
+        const normalizedEmail = email.trim().toLowerCase();
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
 
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-      if (loginError) {
-        // Registration succeeded but auto-login failed — still show success
-        toast.success(response.message);
-        setTimeout(() => navigate('/'), 2000);
+        if (loginError) {
+          toast.success(response.message);
+          setTimeout(() => navigate('/'), 2000);
+        } else {
+          toast.success(response.message);
+          setTimeout(() => navigate('/dashboard/business'), 1500);
+        }
       } else {
-        toast.success(response.message);
-        const dashPath = type === 'business' ? '/dashboard/business' : '/dashboard';
-        setTimeout(() => navigate(dashPath), 1500);
+        // Blogger: pending review — keep them logged out
+        toast.success(response.message, {
+          description: 'بررسی توسط ادمین معمولاً بین ۱ تا ۲۴ ساعت طول می‌کشد. پس از تأیید می‌توانید وارد شوید.',
+          duration: 8000,
+        });
+        setTimeout(() => navigate('/'), 3500);
       }
     } catch {
       toast.error('خطایی در پردازش درخواست رخ داد. لطفاً دوباره تلاش کنید.');
