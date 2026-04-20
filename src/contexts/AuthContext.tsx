@@ -15,6 +15,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Fetch role from the secure user_roles table (not user_metadata, which clients can edit)
+async function fetchUserRole(userId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_user_role', { _user_id: userId });
+  if (error) {
+    console.error('Failed to fetch user role:', error);
+    return null;
+  }
+  return (data as string | null) ?? null;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -26,9 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Fetch role from user metadata
-        const role = session.user.user_metadata?.role || null;
-        setUserRole(role);
+        // Defer DB call to avoid deadlock inside auth callback
+        setTimeout(() => {
+          fetchUserRole(session.user.id).then(setUserRole);
+        }, 0);
       } else {
         setUserRole(null);
       }
@@ -39,8 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const role = session.user.user_metadata?.role || null;
-        setUserRole(role);
+        fetchUserRole(session.user.id).then(setUserRole);
       }
       setLoading(false);
     });
@@ -52,12 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { role, username },
-      },
+      options: { data: { role, username } },
     });
 
-    // Sync profile to admin dashboard after successful signup
     if (!error && data.user) {
       const profileData = { user_id: data.user.id, username, display_name: username, email };
       if (role === 'blogger') {
