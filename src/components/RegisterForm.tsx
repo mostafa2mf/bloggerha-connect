@@ -75,6 +75,7 @@ const RegisterForm = ({ type }: Props) => {
       password,
       instagram_url: instagram,
       category,
+      city,
     };
     if (type === 'blogger') {
       rawData.followers_count = followersCount;
