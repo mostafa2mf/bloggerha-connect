@@ -224,6 +224,7 @@ export type Database = {
           approval_status: string
           avatar_url: string | null
           bio: string | null
+          brand_name: string | null
           category: string | null
           city: string | null
           created_at: string
@@ -231,6 +232,8 @@ export type Database = {
           email: string | null
           engagement_rate: number | null
           followers_count: number | null
+          full_name: string | null
+          gender: string | null
           id: string
           images: string[] | null
           instagram: string | null
@@ -246,6 +249,7 @@ export type Database = {
           approval_status?: string
           avatar_url?: string | null
           bio?: string | null
+          brand_name?: string | null
           category?: string | null
           city?: string | null
           created_at?: string
@@ -253,6 +257,8 @@ export type Database = {
           email?: string | null
           engagement_rate?: number | null
           followers_count?: number | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
           images?: string[] | null
           instagram?: string | null
@@ -268,6 +274,7 @@ export type Database = {
           approval_status?: string
           avatar_url?: string | null
           bio?: string | null
+          brand_name?: string | null
           category?: string | null
           city?: string | null
           created_at?: string
@@ -275,6 +282,8 @@ export type Database = {
           email?: string | null
           engagement_rate?: number | null
           followers_count?: number | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
           images?: string[] | null
           instagram?: string | null
