@@ -11,6 +11,7 @@ import BusinessRegister from "./pages/BusinessRegister.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import BusinessDashboard from "./pages/BusinessDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import AuthGate from "./components/shared/AuthGate";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <AuthProvider>
             <TooltipProvider>
               <Sonner />
+              <AuthGate>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/register/blogger" element={<BloggerRegister />} />
@@ -30,6 +32,7 @@ const App = () => (
                 <Route path="/dashboard/business" element={<BusinessDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </AuthGate>
             </TooltipProvider>
           </AuthProvider>
         </BrowserRouter>
