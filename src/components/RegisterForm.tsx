@@ -24,6 +24,7 @@ import {
   businessRegisterSchema,
   bloggerRegisterSchema,
   extractInstagramUsername,
+  toEnglishDigits,
   IRAN_CITIES,
   BLOGGER_CATEGORIES,
   BUSINESS_CATEGORIES,
@@ -75,7 +76,7 @@ const RegisterForm = ({ type }: Props) => {
       city: "شهر را انتخاب کنید",
       categoryBlogger: "دسته‌بندی فعالیت را انتخاب کنید",
       categoryBusiness: "دسته‌بندی کسب‌وکار را انتخاب کنید",
-      instagram: "@username یا https://instagram.com/username",
+      instagram: "@username",
       submit: "ثبت‌نام",
       loading: "در حال ثبت‌نام...",
       invalidForm: "لطفاً فیلدهای فرم را درست تکمیل کنید.",
@@ -101,7 +102,7 @@ const RegisterForm = ({ type }: Props) => {
       city: "Select city",
       categoryBlogger: "Select content category",
       categoryBusiness: "Select business category",
-      instagram: "@username or https://instagram.com/username",
+      instagram: "@username",
       submit: "Register",
       loading: "Submitting...",
       invalidForm: "Please complete the form correctly.",
@@ -349,7 +350,9 @@ const RegisterForm = ({ type }: Props) => {
                   placeholder={copy.brandName}
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
-                  className={getInputClass("brand_name")}
+                  className={getInputClass("brand_name") + " font-sans"}
+                  dir="ltr"
+                  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
                 />
               </div>
               <FieldError field="brand_name" />
@@ -365,6 +368,8 @@ const RegisterForm = ({ type }: Props) => {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className={getInputClass("full_name")}
+                dir="ltr"
+                style={{ fontFamily: "Inter, system-ui, sans-serif" }}
               />
             </div>
             <FieldError field="full_name" />
@@ -390,11 +395,14 @@ const RegisterForm = ({ type }: Props) => {
               <Phone size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="tel"
+                inputMode="numeric"
                 placeholder={copy.phone}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(toEnglishDigits(e.target.value).replace(/[^\d]/g, ""))}
+                maxLength={11}
                 className={getInputClass("phone")}
                 dir="ltr"
+                style={{ fontFamily: "Inter, system-ui, sans-serif" }}
               />
             </div>
             <FieldError field="phone" />
@@ -509,9 +517,18 @@ const RegisterForm = ({ type }: Props) => {
                 type="text"
                 placeholder={copy.instagram}
                 value={instagram}
-                onChange={(e) => setInstagram(e.target.value)}
+                onChange={(e) => {
+                  let v = e.target.value.trim();
+                  // Strip URL prefixes if user pastes a link
+                  v = v.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "");
+                  v = v.replace(/\/+$/, "");
+                  // Always force a single leading @
+                  v = "@" + v.replace(/^@+/, "");
+                  setInstagram(v);
+                }}
                 className={getInputClass("instagram_url")}
                 dir="ltr"
+                style={{ fontFamily: "Inter, system-ui, sans-serif" }}
               />
               {igUsername && !fieldErrors["instagram_url"] && (
                 <CheckCircle2 size={16} className="absolute end-3 top-1/2 -translate-y-1/2 text-green-500" />
