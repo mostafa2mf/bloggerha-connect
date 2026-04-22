@@ -100,14 +100,11 @@ const categoryStringSchema = z.string().trim().min(1, "لطفاً دسته‌ب�
 const instagramSchema = z
   .string()
   .trim()
-  .min(1, "آدرس اینستاگرام الزامی است.")
+  .min(1, "آیدی اینستاگرام الزامی است.")
   .refine((value) => !!extractInstagramUsername(value), {
-    message: "آیدی یا لینک اینستاگرام معتبر نیست.",
+    message: "آیدی اینستاگرام باید با @ شروع شود (مثل @username).",
   })
-  .transform((value) => {
-    const username = extractInstagramUsername(value);
-    return username ? `@${username}` : value.trim();
-  });
+  .transform((value) => `@${extractInstagramUsername(value)}`);
 
 export const bloggerRegisterSchema = z.object({
   full_name: fullNameSchema,
