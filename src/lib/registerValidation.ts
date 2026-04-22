@@ -82,7 +82,8 @@ export function toEnglishDigits(input: string): string {
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^09\d{9}$/, "شماره موبایل باید با 09 شروع شود و 11 رقم باشد.");
+  .transform((v) => toEnglishDigits(v))
+  .pipe(z.string().regex(/^09\d{9}$/, "شماره موبایل باید با 09 شروع شود و 11 رقم باشد."));
 
 const emailSchema = z.string().trim().min(1, "ایمیل الزامی است.").email("فرمت ایمیل صحیح نیست.");
 
