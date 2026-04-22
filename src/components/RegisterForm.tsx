@@ -238,7 +238,12 @@ const RegisterForm = ({ type }: Props) => {
 
       toast.success(payload?.message || (isBlogger ? copy.bloggerSuccess : copy.businessSuccess));
 
-      setTimeout(() => navigate("/"), 2000);
+      // Save email so subsequent visits show the pending screen instead of the form
+      const submittedEmail = (result.data as any).email as string;
+      try { localStorage.setItem(STORAGE_KEY, submittedEmail); } catch { /* ignore */ }
+      setPendingProfile(payload?.profile || null);
+      setPendingEmail(submittedEmail);
+      setBootChecking(false);
     } catch {
       toast.error(copy.genericError);
     } finally {
