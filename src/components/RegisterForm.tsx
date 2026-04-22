@@ -279,6 +279,35 @@ const RegisterForm = ({ type }: Props) => {
     );
   };
 
+  // Show loading while we resolve a stored pending email
+  if (bootChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If a pending registration exists for this email, show status instead of the form
+  if (pendingEmail) {
+    return (
+      <PendingByEmailScreen
+        email={pendingEmail}
+        initialProfile={pendingProfile}
+        onApproved={() => {
+          localStorage.removeItem(STORAGE_KEY);
+          setPendingEmail(null);
+          setPendingProfile(null);
+        }}
+        onReset={() => {
+          localStorage.removeItem(STORAGE_KEY);
+          setPendingEmail(null);
+          setPendingProfile(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div
       className="min-h-screen flex items-center justify-center py-10 sm:py-16 lg:py-24 px-3 sm:px-4 relative"
