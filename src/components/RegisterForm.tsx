@@ -1,7 +1,8 @@
-import { useState, FormEvent, useMemo } from "react";
+import { useState, FormEvent, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link, useNavigate } from "react-router-dom";
+import PendingByEmailScreen from "@/components/shared/PendingByEmailScreen";
 import {
   ArrowRight,
   ArrowLeft,
