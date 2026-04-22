@@ -62,17 +62,21 @@ export const FOLLOWER_OPTIONS = [
   { value: "500k+", fa: "500K+", en: "500K+", numericValue: 500000 },
 ] as const;
 
-const instagramRegex =
-  /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([A-Za-z0-9._]{1,30})\/?$|^@?([A-Za-z0-9._]{1,30})$/i;
+// Accept only @username (1-30 chars, letters/numbers/._). No URLs.
+const instagramHandleRegex = /^@[A-Za-z0-9._]{1,30}$/;
 
 export function extractInstagramUsername(input: string): string {
-  const value = input.trim();
+  const value = input.trim().replace(/^@+/, "");
   if (!value) return "";
+  if (!/^[A-Za-z0-9._]{1,30}$/.test(value)) return "";
+  return value;
+}
 
-  const match = value.match(instagramRegex);
-  if (!match) return "";
-
-  return match[1] || match[2] || "";
+// Convert Persian/Arabic digits to ASCII digits.
+export function toEnglishDigits(input: string): string {
+  return input
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
 }
 
 const phoneSchema = z
