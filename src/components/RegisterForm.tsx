@@ -1,7 +1,8 @@
-import { useState, FormEvent, useMemo } from "react";
+import { useState, FormEvent, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link, useNavigate } from "react-router-dom";
+import PendingByEmailScreen from "@/components/shared/PendingByEmailScreen";
 import {
   ArrowRight,
   ArrowLeft,
@@ -113,6 +114,15 @@ const RegisterForm = ({ type }: Props) => {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  const STORAGE_KEY = `pending_registration_${type}`;
+
+  const [pendingEmail, setPendingEmail] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(STORAGE_KEY);
+  });
+  const [pendingProfile, setPendingProfile] = useState<any>(null);
+  const [bootChecking, setBootChecking] = useState<boolean>(!!pendingEmail);
+
   const [fullName, setFullName] = useState("");
   const [brandName, setBrandName] = useState("");
   const [email, setEmail] = useState("");
@@ -122,6 +132,39 @@ const RegisterForm = ({ type }: Props) => {
   const [followersCount, setFollowersCount] = useState("");
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("");
+
+  // On mount: if we have a stored email, look up its current status.
+  // If approved, clear gate so user can log in normally.
+  useEffect(() => {
+    if (!pendingEmail) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke('check-registration', {
+          body: { email: pendingEmail },
+        });
+        if (cancelled) return;
+        if (data?.exists && data.profile) {
+          if (data.profile.approval_status === 'approved') {
+            localStorage.removeItem(STORAGE_KEY);
+            setPendingEmail(null);
+            setPendingProfile(null);
+          } else {
+            setPendingProfile(data.profile);
+          }
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setPendingEmail(null);
+        }
+      } catch (err) {
+        console.error('Initial status check failed:', err);
+      } finally {
+        if (!cancelled) setBootChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const igUsername = useMemo(() => extractInstagramUsername(instagram), [instagram]);
 
@@ -195,7 +238,12 @@ const RegisterForm = ({ type }: Props) => {
 
       toast.success(payload?.message || (isBlogger ? copy.bloggerSuccess : copy.businessSuccess));
 
-      setTimeout(() => navigate("/"), 2000);
+      // Save email so subsequent visits show the pending screen instead of the form
+      const submittedEmail = (result.data as any).email as string;
+      try { localStorage.setItem(STORAGE_KEY, submittedEmail); } catch { /* ignore */ }
+      setPendingProfile(payload?.profile || null);
+      setPendingEmail(submittedEmail);
+      setBootChecking(false);
     } catch {
       toast.error(copy.genericError);
     } finally {
@@ -230,6 +278,35 @@ const RegisterForm = ({ type }: Props) => {
       </AnimatePresence>
     );
   };
+
+  // Show loading while we resolve a stored pending email
+  if (bootChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If a pending registration exists for this email, show status instead of the form
+  if (pendingEmail) {
+    return (
+      <PendingByEmailScreen
+        email={pendingEmail}
+        initialProfile={pendingProfile}
+        onApproved={() => {
+          localStorage.removeItem(STORAGE_KEY);
+          setPendingEmail(null);
+          setPendingProfile(null);
+        }}
+        onReset={() => {
+          localStorage.removeItem(STORAGE_KEY);
+          setPendingEmail(null);
+          setPendingProfile(null);
+        }}
+      />
+    );
+  }
 
   return (
     <div
