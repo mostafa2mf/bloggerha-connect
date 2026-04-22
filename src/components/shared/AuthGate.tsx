@@ -19,14 +19,19 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) return;
+    if (!user) {
+      setShowSplash(false);
+      return;
+    }
     if (!isPublic) return;
-    // Wait for role to resolve briefly, then redirect
+    // Authenticated user on a public page → splash + redirect to their area.
+    // The dashboard layouts themselves render the PendingApprovalScreen when
+    // approval_status !== 'approved', so users without approval still land
+    // on the waiting screen instead of the registration form.
     setShowSplash(true);
     const timer = setTimeout(() => {
       const target = userRole === 'business' ? '/dashboard/business' : '/dashboard';
       navigate(target, { replace: true });
-      // Hide splash slightly after navigation so the dashboard mounts under it
       setTimeout(() => setShowSplash(false), 200);
     }, 1200);
     return () => clearTimeout(timer);
