@@ -5,16 +5,14 @@ import { checkApproval } from '@/lib/adminSync';
 import { useSearchParams } from 'react-router-dom';
 import DashTopBar from '../dashboard/DashTopBar';
 import BizHome from './BizHome';
-import BizDiscover from './BizDiscover';
 import BizCampaigns from './BizCampaigns';
 import BizApplications from './BizApplications';
 import BizMessages from './BizMessages';
-import BizAnalytics from './BizAnalytics';
 import BizProfile from './BizProfile';
 import PendingApprovalScreen from '../shared/PendingApprovalScreen';
 import { Loader2 } from 'lucide-react';
 
-type BizTabId = 'home' | 'discover' | 'campaigns' | 'applications' | 'messages' | 'analytics' | 'profile';
+type BizTabId = 'home' | 'campaigns' | 'applications' | 'messages' | 'profile';
 
 const BusinessDashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<BizTabId>('home');
@@ -62,11 +60,9 @@ const BusinessDashboardLayout = () => {
   const renderTab = () => {
     switch (activeTab) {
       case 'home': return <BizHome onNavigate={(tab) => setActiveTab(tab as BizTabId)} />;
-      case 'discover': return <BizDiscover onGoBack={goHome} />;
       case 'campaigns': return <BizCampaigns onGoBack={goHome} />;
       case 'applications': return <BizApplications onGoBack={goHome} />;
       case 'messages': return <BizMessages onGoBack={goHome} />;
-      case 'analytics': return <BizAnalytics onGoBack={goHome} />;
       case 'profile': return <BizProfile onGoBack={goHome} />;
     }
   };
