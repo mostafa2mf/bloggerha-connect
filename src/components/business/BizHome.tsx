@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Megaphone, Eye, Users, MessageCircle, BarChart3, User } from 'lucide-react';
+import { Megaphone, Users, MessageCircle, User } from 'lucide-react';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -13,9 +13,7 @@ interface Props {
 const shortcuts = [
   { id: 'campaigns', icon: Megaphone, labelFa: 'کمپین‌ها', labelEn: 'Campaigns', desc_fa: 'مدیریت کمپین‌ها', desc_en: 'Manage campaigns', gradient: 'from-orange-400 to-amber-500', bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-orange-200 dark:border-orange-800/40' },
   { id: 'applications', icon: Users, labelFa: 'مهمان‌ها', labelEn: 'Guests', desc_fa: 'مهمان‌های آینده', desc_en: 'Upcoming guests', gradient: 'from-sky-400 to-blue-500', bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800/40' },
-  { id: 'discover', icon: Eye, labelFa: 'بازدید بلاگرها', labelEn: 'Browse Bloggers', desc_fa: 'مشاهده بلاگرها', desc_en: 'View bloggers', gradient: 'from-violet-400 to-purple-500', bg: 'bg-violet-50 dark:bg-violet-950/30', border: 'border-violet-200 dark:border-violet-800/40' },
   { id: 'messages', icon: MessageCircle, labelFa: 'پیام‌ها', labelEn: 'Messages', desc_fa: 'گفتگو با ادمین', desc_en: 'Chat with admin', gradient: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-200 dark:border-emerald-800/40' },
-  { id: 'analytics', icon: BarChart3, labelFa: 'آمار', labelEn: 'Analytics', desc_fa: 'مشاهده آمار', desc_en: 'View statistics', gradient: 'from-rose-400 to-pink-500', bg: 'bg-rose-50 dark:bg-rose-950/30', border: 'border-rose-200 dark:border-rose-800/40' },
   { id: 'profile', icon: User, labelFa: 'پروفایل', labelEn: 'Profile', desc_fa: 'ویرایش اطلاعات', desc_en: 'Edit your info', gradient: 'from-amber-400 to-yellow-500', bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800/40' },
 ];
 

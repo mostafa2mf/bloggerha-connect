@@ -11,6 +11,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onCreated?: () => void;
+  editCampaign?: PrevCampaign & { id: string } | null;
 }
 
 const cities = ['تهران', 'مشهد', 'اصفهان', 'شیراز', 'تبریز'];
@@ -27,7 +28,7 @@ type PrevCampaign = {
   cover_image: string | null;
 };
 
-const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
+const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -47,9 +48,24 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
 
   const updateField = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
+  // Prefill when editing
+  useEffect(() => {
+    if (isOpen && editCampaign) {
+      setForm({
+        title: editCampaign.title || '',
+        description: editCampaign.description || '',
+        city: editCampaign.city || 'تهران',
+        category: editCampaign.category || '',
+        start_date: editCampaign.start_date || '',
+        end_date: editCampaign.end_date || '',
+      });
+      if (editCampaign.cover_image) setCoverPreview(editCampaign.cover_image);
+    }
+  }, [isOpen, editCampaign]);
+
   // Fetch previous campaigns for repeat
   useEffect(() => {
-    if (!user || !isOpen) return;
+    if (!user || !isOpen || editCampaign) return;
     supabase
       .from('campaigns')
       .select('id, title, description, city, category, start_date, end_date, cover_image')
@@ -57,7 +73,7 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
       .order('created_at', { ascending: false })
       .limit(10)
       .then(({ data }) => setPrevCampaigns((data as PrevCampaign[]) || []));
-  }, [user, isOpen]);
+  }, [user, isOpen, editCampaign]);
 
   const handleRepeat = (c: PrevCampaign) => {
     setForm({
@@ -107,24 +123,42 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
         }
       }
 
-      const { error } = await supabase.from('campaigns').insert({
-        business_id: user.id,
-        title: form.title,
-        description: form.description || null,
-        city: form.city || null,
-        category: form.category || null,
-        budget: null,
-        collaboration_type: null,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
-        cover_image,
-        status: 'draft',
-      });
+      let error;
+      if (editCampaign?.id) {
+        const updatePayload: any = {
+          title: form.title,
+          description: form.description || null,
+          city: form.city || null,
+          category: form.category || null,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          status: 'pending',
+          admin_approval_status: 'pending',
+        };
+        if (cover_image) updatePayload.cover_image = cover_image;
+        const res = await supabase.from('campaigns').update(updatePayload).eq('id', editCampaign.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from('campaigns').insert({
+          business_id: user.id,
+          title: form.title,
+          description: form.description || null,
+          city: form.city || null,
+          category: form.category || null,
+          budget: null,
+          collaboration_type: null,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          cover_image,
+          status: 'pending',
+        });
+        error = res.error;
+      }
 
       if (error) throw error;
 
       syncCampaign({
-        id: crypto.randomUUID(),
+        id: editCampaign?.id || crypto.randomUUID(),
         title: form.title,
         business_id: user.id,
         city: form.city,
@@ -134,7 +168,11 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
         end_date: form.end_date,
       }).catch(console.error);
 
-      toast.success(lang === 'fa' ? 'کمپین با موفقیت ساخته شد و برای تأیید ادمین ارسال شد' : 'Campaign created & sent for approval');
+      toast.success(
+        editCampaign
+          ? (lang === 'fa' ? 'کمپین ویرایش و دوباره برای تأیید ارسال شد' : 'Campaign updated & resubmitted for approval')
+          : (lang === 'fa' ? 'کمپین با موفقیت ساخته شد و برای تأیید ادمین ارسال شد' : 'Campaign created & sent for approval')
+      );
       onCreated?.();
       onClose();
       setForm({ title: '', description: '', city: 'تهران', category: '', start_date: '', end_date: '' });
