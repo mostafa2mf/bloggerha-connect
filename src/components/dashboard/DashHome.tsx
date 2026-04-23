@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, MessageCircle, User, Upload, BarChart3 } from 'lucide-react';
+import { Calendar, MessageCircle, User, Upload } from 'lucide-react';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -15,7 +15,6 @@ const shortcuts = [
   { id: 'messages', icon: MessageCircle, labelFa: 'پیام‌ها', labelEn: 'Messages', desc_fa: 'گفتگو با ادمین', desc_en: 'Chat with admin', gradient: 'from-violet-400 to-purple-500', bg: 'bg-violet-50 dark:bg-violet-950/30', border: 'border-violet-200 dark:border-violet-800/40' },
   { id: 'profile', icon: User, labelFa: 'پروفایل', labelEn: 'Profile', desc_fa: 'ویرایش اطلاعات حساب', desc_en: 'Edit your account info', gradient: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-200 dark:border-emerald-800/40' },
   { id: 'upload-review', icon: Upload, labelFa: 'بازبینی محتوا', labelEn: 'Upload Review', desc_fa: 'ارسال مدارک بازدید', desc_en: 'Submit visit proof', gradient: 'from-rose-400 to-pink-500', bg: 'bg-rose-50 dark:bg-rose-950/30', border: 'border-rose-200 dark:border-rose-800/40' },
-  { id: 'analytics', icon: BarChart3, labelFa: 'آمار', labelEn: 'Analytics', desc_fa: 'تحلیل عملکرد شما', desc_en: 'Your performance', gradient: 'from-sky-400 to-blue-500', bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800/40' },
 ];
 
 const DashHome = ({ onNavigate }: Props) => {
