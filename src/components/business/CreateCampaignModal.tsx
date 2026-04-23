@@ -48,9 +48,24 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
 
   const updateField = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
+  // Prefill when editing
+  useEffect(() => {
+    if (isOpen && editCampaign) {
+      setForm({
+        title: editCampaign.title || '',
+        description: editCampaign.description || '',
+        city: editCampaign.city || 'تهران',
+        category: editCampaign.category || '',
+        start_date: editCampaign.start_date || '',
+        end_date: editCampaign.end_date || '',
+      });
+      if (editCampaign.cover_image) setCoverPreview(editCampaign.cover_image);
+    }
+  }, [isOpen, editCampaign]);
+
   // Fetch previous campaigns for repeat
   useEffect(() => {
-    if (!user || !isOpen) return;
+    if (!user || !isOpen || editCampaign) return;
     supabase
       .from('campaigns')
       .select('id, title, description, city, category, start_date, end_date, cover_image')
@@ -58,7 +73,7 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
       .order('created_at', { ascending: false })
       .limit(10)
       .then(({ data }) => setPrevCampaigns((data as PrevCampaign[]) || []));
-  }, [user, isOpen]);
+  }, [user, isOpen, editCampaign]);
 
   const handleRepeat = (c: PrevCampaign) => {
     setForm({
