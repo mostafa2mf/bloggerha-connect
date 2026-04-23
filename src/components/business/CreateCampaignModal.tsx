@@ -11,6 +11,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onCreated?: () => void;
+  editCampaign?: PrevCampaign & { id: string } | null;
 }
 
 const cities = ['تهران', 'مشهد', 'اصفهان', 'شیراز', 'تبریز'];
@@ -27,7 +28,7 @@ type PrevCampaign = {
   cover_image: string | null;
 };
 
-const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
+const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
