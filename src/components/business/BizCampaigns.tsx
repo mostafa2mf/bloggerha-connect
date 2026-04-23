@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit3, Copy, Archive, Trash2, Eye, Users, MapPin, Calendar, Clock, Loader2 } from 'lucide-react';
+import { Plus, Edit3, Trash2, Eye, Users, MapPin, Calendar, Clock, Loader2, RefreshCw, PowerOff } from 'lucide-react';
 import { toast } from 'sonner';
 import CreateCampaignModal from './CreateCampaignModal';
 
 type Campaign = {
   id: string;
   title: string;
+  description: string | null;
   category: string | null;
   city: string | null;
   budget: string | null;
@@ -23,52 +24,79 @@ type Campaign = {
   admin_approval_status: string;
 };
 
-const tabFilters = ['all', 'draft', 'active', 'scheduled', 'completed', 'archived'] as const;
-
-const statusBadge: Record<string, string> = {
-  active: 'bg-green-500/10 text-green-400',
-  draft: 'bg-muted text-muted-foreground',
-  scheduled: 'bg-blue-500/10 text-blue-400',
-  completed: 'bg-purple-500/10 text-purple-400',
-  archived: 'bg-muted text-muted-foreground',
-};
+type TabKey = 'all' | 'pending' | 'active' | 'inactive';
+const tabFilters: TabKey[] = ['all', 'pending', 'active', 'inactive'];
 
 const BizCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
   const { lang } = useLanguage();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<Campaign | null>(null);
 
-  const tabLabels: Record<string, string> = {
+  const tabLabels: Record<TabKey, string> = {
     all: lang === 'fa' ? 'همه' : 'All',
-    draft: lang === 'fa' ? 'پیش‌نویس' : 'Draft',
+    pending: lang === 'fa' ? 'در انتظار تأیید' : 'Pending Approval',
     active: lang === 'fa' ? 'فعال' : 'Active',
-    scheduled: lang === 'fa' ? 'زمان‌بندی' : 'Scheduled',
-    completed: lang === 'fa' ? 'انجام شده' : 'Completed',
-    archived: lang === 'fa' ? 'آرشیو' : 'Archived',
+    inactive: lang === 'fa' ? 'غیرفعال' : 'Inactive',
   };
 
   const fetchCampaigns = async () => {
     if (!user) return;
     setLoading(true);
-    let query = supabase.from('campaigns').select('*').eq('business_id', user.id).order('created_at', { ascending: false });
-    if (activeTab !== 'all') {
-      query = query.eq('status', activeTab);
-    }
-    const { data } = await query;
+    const { data } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('business_id', user.id)
+      .order('created_at', { ascending: false });
     setCampaigns((data as Campaign[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchCampaigns(); }, [activeTab, user]);
+  useEffect(() => { fetchCampaigns(); }, [user]);
+
+  const bucketOf = (c: Campaign): TabKey => {
+    if (c.admin_approval_status === 'pending') return 'pending';
+    if (c.admin_approval_status === 'approved' && c.status === 'active') return 'active';
+    return 'inactive'; // rejected, draft, archived, completed, etc.
+  };
+
+  const visible = campaigns.filter(c => activeTab === 'all' ? true : bucketOf(c) === activeTab);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('campaigns').delete().eq('id', id);
     if (error) { toast.error(error.message); return; }
     toast.success(lang === 'fa' ? 'کمپین حذف شد' : 'Campaign deleted');
     fetchCampaigns();
+  };
+
+  const handleDeactivate = async (id: string) => {
+    const { error } = await supabase.from('campaigns').update({ status: 'inactive' }).eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(lang === 'fa' ? 'کمپین غیرفعال شد' : 'Campaign deactivated');
+    fetchCampaigns();
+  };
+
+  const renderBadges = (c: Campaign) => {
+    const bucket = bucketOf(c);
+    const map: Record<TabKey, { fa: string; en: string; cls: string }> = {
+      pending: { fa: '⏳ در انتظار تأیید ادمین', en: '⏳ Pending Admin', cls: 'bg-amber-500/10 text-amber-400' },
+      active: { fa: '✓ فعال', en: '✓ Active', cls: 'bg-green-500/10 text-green-400' },
+      inactive: {
+        fa: c.admin_approval_status === 'rejected' ? '✗ رد شده' : '⛔ غیرفعال',
+        en: c.admin_approval_status === 'rejected' ? '✗ Rejected' : '⛔ Inactive',
+        cls: c.admin_approval_status === 'rejected' ? 'bg-red-500/10 text-red-400' : 'bg-muted text-muted-foreground',
+      },
+      all: { fa: '', en: '', cls: '' },
+    };
+    const b = map[bucket];
+    return (
+      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${b.cls}`}>
+        {lang === 'fa' ? b.fa : b.en}
+      </span>
+    );
   };
 
   return (
@@ -78,7 +106,7 @@ const BizCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
         <h1 className="text-2xl font-bold gradient-text">{lang === 'fa' ? 'کمپین‌ها' : 'Campaigns'}</h1>
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => setCreateOpen(true)}
+          onClick={() => { setEditing(null); setCreateOpen(true); }}
           className="gradient-bg text-primary-foreground text-xs font-medium px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
         >
           <Plus size={14} /> {lang === 'fa' ? 'ساخت کمپین' : 'Create Campaign'}
@@ -106,76 +134,78 @@ const BizCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
             <div className="glass rounded-3xl p-8 flex justify-center">
               <Loader2 className="animate-spin text-primary" size={24} />
             </div>
-          ) : campaigns.length === 0 ? (
+          ) : visible.length === 0 ? (
             <div className="glass rounded-3xl p-8 text-center">
               <Clock size={32} className="mx-auto mb-3 opacity-50" />
               <p className="text-sm text-muted-foreground">{lang === 'fa' ? 'هیچ کمپینی وجود ندارد' : 'No campaigns found'}</p>
             </div>
           ) : (
-            campaigns.map((c) => (
-              <motion.div key={c.id} className="glass rounded-3xl overflow-hidden" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                {c.cover_image && (
-                  <div className="h-32 overflow-hidden relative">
-                    <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-3 start-3 flex gap-1.5">
-                      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${statusBadge[c.status] || statusBadge.draft}`}>
-                        {c.status}
-                      </span>
-                      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${
-                        c.admin_approval_status === 'approved' ? 'bg-green-500/10 text-green-400' :
-                        c.admin_approval_status === 'rejected' ? 'bg-red-500/10 text-red-400' :
-                        'bg-amber-500/10 text-amber-400'
-                      }`}>
-                        {lang === 'fa'
-                          ? (c.admin_approval_status === 'approved' ? '✓ تأیید ادمین' : c.admin_approval_status === 'rejected' ? '✗ رد شده' : '⏳ در انتظار تأیید')
-                          : (c.admin_approval_status === 'approved' ? '✓ Approved' : c.admin_approval_status === 'rejected' ? '✗ Rejected' : '⏳ Pending')}
-                      </span>
+            visible.map((c) => {
+              const bucket = bucketOf(c);
+              const isInactive = bucket === 'inactive';
+              const isActive = bucket === 'active';
+              return (
+                <motion.div key={c.id} className="glass rounded-3xl overflow-hidden" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  {c.cover_image && (
+                    <div className="h-32 overflow-hidden relative">
+                      <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover" />
+                      <div className="absolute top-3 start-3">{renderBadges(c)}</div>
+                    </div>
+                  )}
+                  {!c.cover_image && (
+                    <div className="px-4 pt-4">{renderBadges(c)}</div>
+                  )}
+                  <div className="p-4">
+                    <h3 className="font-bold mb-1">{c.title}</h3>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2 flex-wrap">
+                      {c.city && <span className="flex items-center gap-1"><MapPin size={11} /> {c.city}</span>}
+                      {c.start_date && <span className="flex items-center gap-1"><Calendar size={11} /> {c.start_date}</span>}
+                      {c.budget && <span className="font-medium text-primary">{c.budget} تومان</span>}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                      <span className="flex items-center gap-1"><Users size={11} /> {c.applicants_count || 0} {lang === 'fa' ? 'درخواست' : 'apps'}</span>
+                      <span>{c.approved_count || 0} {lang === 'fa' ? 'تأیید شده' : 'approved'}</span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {isActive && (
+                        <>
+                          <motion.button whileTap={{ scale: 0.95 }} className="flex-1 gradient-bg text-primary-foreground text-xs font-medium py-2 rounded-xl flex items-center justify-center gap-1 hover:opacity-90 transition-opacity">
+                            <Eye size={12} /> {lang === 'fa' ? 'مشاهده درخواست‌ها' : 'View Applicants'}
+                          </motion.button>
+                          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDeactivate(c.id)} className="glass text-xs py-2 px-3 rounded-xl hover:bg-muted/50 transition-colors" title={lang === 'fa' ? 'غیرفعال کردن' : 'Deactivate'}><PowerOff size={14} /></motion.button>
+                        </>
+                      )}
+                      {isInactive && (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => { setEditing(c); setCreateOpen(true); }}
+                          className="flex-1 gradient-bg text-primary-foreground text-xs font-medium py-2 rounded-xl flex items-center justify-center gap-1 hover:opacity-90 transition-opacity"
+                        >
+                          <RefreshCw size={12} /> {lang === 'fa' ? 'ادیت و ارسال مجدد' : 'Edit & Resubmit'}
+                        </motion.button>
+                      )}
+                      {bucket === 'pending' && (
+                        <div className="flex-1 text-center text-xs text-muted-foreground py-2">
+                          {lang === 'fa' ? 'منتظر تأیید ادمین…' : 'Awaiting admin approval…'}
+                        </div>
+                      )}
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setEditing(c); setCreateOpen(true); }} className="glass text-xs py-2 px-3 rounded-xl hover:bg-muted/50 transition-colors"><Edit3 size={14} /></motion.button>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDelete(c.id)} className="glass text-xs py-2 px-3 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 size={14} /></motion.button>
                     </div>
                   </div>
-                )}
-                {!c.cover_image && (
-                  <div className="px-4 pt-4 flex gap-1.5">
-                    <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${statusBadge[c.status] || statusBadge.draft}`}>
-                      {c.status}
-                    </span>
-                    <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${
-                      c.admin_approval_status === 'approved' ? 'bg-green-500/10 text-green-400' :
-                      c.admin_approval_status === 'rejected' ? 'bg-red-500/10 text-red-400' :
-                      'bg-amber-500/10 text-amber-400'
-                    }`}>
-                      {lang === 'fa'
-                        ? (c.admin_approval_status === 'approved' ? '✓ تأیید ادمین' : c.admin_approval_status === 'rejected' ? '✗ رد شده' : '⏳ در انتظار تأیید')
-                        : (c.admin_approval_status === 'approved' ? '✓ Approved' : c.admin_approval_status === 'rejected' ? '✗ Rejected' : '⏳ Pending')}
-                    </span>
-                  </div>
-                )}
-                <div className="p-4">
-                  <h3 className="font-bold mb-1">{c.title}</h3>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-                    {c.city && <span className="flex items-center gap-1"><MapPin size={11} /> {c.city}</span>}
-                    {c.start_date && <span className="flex items-center gap-1"><Calendar size={11} /> {c.start_date}</span>}
-                    {c.budget && <span className="font-medium text-primary">{c.budget} تومان</span>}
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-                    <span className="flex items-center gap-1"><Users size={11} /> {c.applicants_count || 0} درخواست</span>
-                    <span>{c.approved_count || 0} تأیید شده</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <motion.button whileTap={{ scale: 0.95 }} className="flex-1 gradient-bg text-primary-foreground text-xs font-medium py-2 rounded-xl flex items-center justify-center gap-1 hover:opacity-90 transition-opacity">
-                      <Eye size={12} /> {lang === 'fa' ? 'مشاهده درخواست‌ها' : 'View Applicants'}
-                    </motion.button>
-                    <motion.button whileTap={{ scale: 0.95 }} className="glass text-xs py-2 px-3 rounded-xl hover:bg-muted/50 transition-colors"><Edit3 size={14} /></motion.button>
-                    <motion.button whileTap={{ scale: 0.95 }} className="glass text-xs py-2 px-3 rounded-xl hover:bg-muted/50 transition-colors"><Copy size={14} /></motion.button>
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDelete(c.id)} className="glass text-xs py-2 px-3 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 size={14} /></motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           )}
         </motion.div>
       </AnimatePresence>
 
-      <CreateCampaignModal isOpen={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchCampaigns} />
+      <CreateCampaignModal
+        isOpen={createOpen}
+        onClose={() => { setCreateOpen(false); setEditing(null); }}
+        onCreated={fetchCampaigns}
+        editCampaign={editing}
+      />
     </motion.div>
   );
 };
