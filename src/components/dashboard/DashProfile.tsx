@@ -33,6 +33,7 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   useEffect(() => {
     if (user) fetchProfile();
+    else setLoading(false);
   }, [user]);
 
   const fetchProfile = async () => {
