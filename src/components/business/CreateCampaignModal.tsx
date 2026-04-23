@@ -123,24 +123,37 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
         }
       }
 
-      const { error } = await supabase.from('campaigns').insert({
-        business_id: user.id,
+      const payload: Record<string, any> = {
         title: form.title,
         description: form.description || null,
         city: form.city || null,
         category: form.category || null,
-        budget: null,
-        collaboration_type: null,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
-        cover_image,
         status: 'pending',
-      });
+        admin_approval_status: 'pending',
+      };
+      if (cover_image) payload.cover_image = cover_image;
+
+      let error;
+      if (editCampaign?.id) {
+        const res = await supabase.from('campaigns').update(payload).eq('id', editCampaign.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from('campaigns').insert({
+          ...payload,
+          business_id: user.id,
+          budget: null,
+          collaboration_type: null,
+          cover_image,
+        });
+        error = res.error;
+      }
 
       if (error) throw error;
 
       syncCampaign({
-        id: crypto.randomUUID(),
+        id: editCampaign?.id || crypto.randomUUID(),
         title: form.title,
         business_id: user.id,
         city: form.city,
@@ -150,7 +163,11 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
         end_date: form.end_date,
       }).catch(console.error);
 
-      toast.success(lang === 'fa' ? 'کمپین با موفقیت ساخته شد و برای تأیید ادمین ارسال شد' : 'Campaign created & sent for approval');
+      toast.success(
+        editCampaign
+          ? (lang === 'fa' ? 'کمپین ویرایش و دوباره برای تأیید ارسال شد' : 'Campaign updated & resubmitted for approval')
+          : (lang === 'fa' ? 'کمپین با موفقیت ساخته شد و برای تأیید ادمین ارسال شد' : 'Campaign created & sent for approval')
+      );
       onCreated?.();
       onClose();
       setForm({ title: '', description: '', city: 'تهران', category: '', start_date: '', end_date: '' });
