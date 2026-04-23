@@ -123,29 +123,34 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
         }
       }
 
-      const payload: Record<string, any> = {
-        title: form.title,
-        description: form.description || null,
-        city: form.city || null,
-        category: form.category || null,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
-        status: 'pending',
-        admin_approval_status: 'pending',
-      };
-      if (cover_image) payload.cover_image = cover_image;
-
       let error;
       if (editCampaign?.id) {
-        const res = await supabase.from('campaigns').update(payload).eq('id', editCampaign.id);
+        const updatePayload: any = {
+          title: form.title,
+          description: form.description || null,
+          city: form.city || null,
+          category: form.category || null,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          status: 'pending',
+          admin_approval_status: 'pending',
+        };
+        if (cover_image) updatePayload.cover_image = cover_image;
+        const res = await supabase.from('campaigns').update(updatePayload).eq('id', editCampaign.id);
         error = res.error;
       } else {
         const res = await supabase.from('campaigns').insert({
-          ...payload,
           business_id: user.id,
+          title: form.title,
+          description: form.description || null,
+          city: form.city || null,
+          category: form.category || null,
           budget: null,
           collaboration_type: null,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
           cover_image,
+          status: 'pending',
         });
         error = res.error;
       }
