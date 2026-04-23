@@ -33,27 +33,38 @@ const DashProfile = ({ onGoBack }: { onGoBack?: () => void }) => {
 
   useEffect(() => {
     if (user) fetchProfile();
+    else setLoading(false);
   }, [user]);
 
   const fetchProfile = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (data) {
-      setBio(data.bio || '');
-      setInsta(data.instagram || '');
-      setDisplayName(data.display_name || data.username);
-      setCity(data.city || 'تهران');
-      setAvatarUrl(data.avatar_url);
-      setImages(data.images || []);
-      setFollowersCount(data.followers_count || 0);
-      setSecurityKeyword(data.security_keyword || '');
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) console.error('Profile fetch error:', error);
+      if (data) {
+        setBio(data.bio || '');
+        setInsta(data.instagram || '');
+        setDisplayName(data.display_name || data.username || '');
+        setCity(data.city || 'تهران');
+        setAvatarUrl(data.avatar_url);
+        setImages(Array.isArray(data.images) ? data.images : []);
+        setFollowersCount(data.followers_count || 0);
+        setSecurityKeyword(data.security_keyword || '');
+      } else {
+        // No profile row yet — fall back to auth metadata so the form is still usable
+        const meta: any = user.user_metadata || {};
+        setDisplayName(meta.display_name || meta.username || meta.full_name || '');
+      }
+    } catch (e) {
+      console.error('Profile fetch threw:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const hasMinImages = images.length >= MAX_IMAGES;
