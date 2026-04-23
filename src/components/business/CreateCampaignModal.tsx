@@ -118,7 +118,7 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated }: Props) => {
         start_date: form.start_date || null,
         end_date: form.end_date || null,
         cover_image,
-        status: 'draft',
+        status: 'pending',
       });
 
       if (error) throw error;
