@@ -32,31 +32,25 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       });
   }, [user]);
 
-  // Realtime listener for approval status changes
+  // Realtime listener + polling for approval status changes
   useEffect(() => {
     if (!user) return;
+
+    const handleApproved = () => {
+      toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Your account has been approved! 🎉');
+      if (onApproved) onApproved();
+      else window.location.reload();
+    };
 
     const channel = supabase
       .channel('approval-status')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `user_id=eq.${user.id}`,
-        },
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          const newStatus = payload.new?.approval_status;
-          if (newStatus === 'approved') {
-            toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Your account has been approved! 🎉');
-            if (onApproved) {
-              onApproved();
-            } else {
-              // Force reload to get into dashboard
-              window.location.reload();
-            }
-          } else if (newStatus === 'rejected') {
+          const newStatus = (payload.new as any)?.approval_status;
+          if (newStatus === 'approved') handleApproved();
+          else if (newStatus === 'rejected') {
             toast.error(lang === 'fa' ? 'متأسفانه حساب شما رد شد.' : 'Your account has been rejected.');
             setProfile((prev: any) => prev ? { ...prev, approval_status: 'rejected' } : prev);
           }
@@ -64,10 +58,22 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       )
       .subscribe();
 
+    // Polling fallback every 8s — calls admin-sync to fetch latest status from admin DB
+    const role = profile?.role === 'business' ? 'business' : 'influencer';
+    const poll = setInterval(async () => {
+      try {
+        const { checkApproval } = await import('@/lib/adminSync');
+        const result: any = await checkApproval(role, user.id, user.id);
+        const status = result?.approval?.status;
+        if (status === 'approved') handleApproved();
+      } catch (_) {}
+    }, 8000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
-  }, [user, lang, onApproved]);
+  }, [user, lang, onApproved, profile?.role]);
 
   const handleRefresh = async () => {
     if (!user) return;
