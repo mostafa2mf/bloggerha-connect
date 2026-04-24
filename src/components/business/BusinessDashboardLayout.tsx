@@ -19,10 +19,26 @@ type BizTabId = 'home' | 'campaigns' | 'applications' | 'messages' | 'profile';
 const BusinessDashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<BizTabId>('home');
   const { user } = useAuth();
+  const { lang } = useLanguage();
   const [searchParams] = useSearchParams();
   const isAdminPreview = searchParams.get('admin_preview') === 'true';
   const [approvalStatus, setApprovalStatus] = useState<string | null>(isAdminPreview ? 'approved' : null);
   const [checking, setChecking] = useState(!isAdminPreview);
+  const welcomedRef = useRef(false);
+
+  useEffect(() => {
+    if (approvalStatus === 'approved' && !welcomedRef.current && user) {
+      welcomedRef.current = true;
+      setTimeout(() => {
+        toast.info(
+          lang === 'fa'
+            ? 'لطفاً قبل از هر کاری پروفایل خود را تکمیل کنید'
+            : 'Please complete your profile before doing anything else',
+          { duration: 6000 }
+        );
+      }, 800);
+    }
+  }, [approvalStatus, user, lang]);
 
   useEffect(() => {
     if (!user) { setChecking(false); return; }
