@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { checkApproval } from '@/lib/adminSync';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 import DashTopBar from '../dashboard/DashTopBar';
 import BizHome from './BizHome';
 import BizCampaigns from './BizCampaigns';
