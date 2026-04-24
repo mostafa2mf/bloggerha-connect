@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { checkApproval } from '@/lib/adminSync';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 import DashTopBar from './DashTopBar';
 import DashHome from './DashHome';
 import DashCampaigns from './DashCampaigns';
@@ -17,10 +19,27 @@ type TabId = 'home' | 'campaigns' | 'upload-review' | 'messages' | 'profile';
 const DashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const { user } = useAuth();
+  const { lang } = useLanguage();
   const [searchParams] = useSearchParams();
   const isAdminPreview = searchParams.get('admin_preview') === 'true';
   const [approvalStatus, setApprovalStatus] = useState<string | null>(isAdminPreview ? 'approved' : null);
   const [checking, setChecking] = useState(!isAdminPreview);
+  const welcomedRef = useRef(false);
+
+  // Show "complete your profile" toast once when user enters dashboard after approval
+  useEffect(() => {
+    if (approvalStatus === 'approved' && !welcomedRef.current && user) {
+      welcomedRef.current = true;
+      setTimeout(() => {
+        toast.info(
+          lang === 'fa'
+            ? 'لطفاً قبل از هر کاری پروفایل خود را تکمیل کنید'
+            : 'Please complete your profile before doing anything else',
+          { duration: 6000 }
+        );
+      }, 800);
+    }
+  }, [approvalStatus, user, lang]);
 
   useEffect(() => {
     if (!user) { setChecking(false); return; }
