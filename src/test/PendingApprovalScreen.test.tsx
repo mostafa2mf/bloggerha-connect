@@ -20,29 +20,30 @@ vi.mock('react-router-dom', async () => {
 });
 
 // Programmable profile state returned by supabase mock
-let currentProfile: any = {
-  display_name: 'Tester',
-  username: 'tester',
-  approval_status: 'pending',
-  role: 'blogger',
-};
-
-const removeChannelMock = vi.fn();
-const subscribeMock = vi.fn(() => ({ unsubscribe: () => {} }));
+const state = vi.hoisted(() => ({
+  currentProfile: {
+    display_name: 'Tester',
+    username: 'tester',
+    approval_status: 'pending',
+    role: 'blogger',
+  } as any,
+  removeChannelMock: vi.fn(),
+  subscribeMock: vi.fn(() => ({ unsubscribe: () => {} })),
+}));
 
 vi.mock('@/integrations/supabase/client', () => {
   const builder: any = {
     select: () => builder,
     eq: () => builder,
-    maybeSingle: () => Promise.resolve({ data: currentProfile, error: null }),
+    maybeSingle: () => Promise.resolve({ data: state.currentProfile, error: null }),
   };
   return {
     supabase: {
       from: () => builder,
       channel: () => ({
-        on: () => ({ subscribe: subscribeMock }),
+        on: () => ({ subscribe: state.subscribeMock }),
       }),
-      removeChannel: removeChannelMock,
+      removeChannel: state.removeChannelMock,
     },
   };
 });
