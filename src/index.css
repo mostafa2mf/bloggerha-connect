@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 97%;
+    --foreground: 30 10% 12%;
+    --card: 40 15% 99%;
+    --card-foreground: 30 10% 12%;
+    --popover: 40 15% 99%;
+    --popover-foreground: 30 10% 12%;
+    --primary: 36 95% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 35 60% 92%;
+    --secondary-foreground: 30 50% 25%;
+    --muted: 35 15% 94%;
+    --muted-foreground: 30 10% 46%;
+    --accent: 27 96% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 15% 88%;
+    --input: 35 15% 88%;
+    --ring: 36 95% 52%;
+    --radius: 0.75rem;
+
+    --glass-bg: 40 20% 99% / 0.8;
+    --glass-border: 36 50% 70% / 0.2;
+    --glass-strong-bg: 40 20% 99% / 0.9;
+    --glow-color: 36 95% 52% / 0.25;
+    --gradient-from: 27 96% 50%;
+    --gradient-to: 42 100% 62%;
+    --gold: 42 90% 55%;
+    --gold-glow: 42 90% 55% / 0.3;
+
+    --sidebar-background: 40 20% 97%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 220 20% 5%;
+    --foreground: 40 30% 95%;
+    --card: 220 18% 8%;
+    --card-foreground: 40 30% 95%;
+    --popover: 220 18% 8%;
+    --popover-foreground: 40 30% 95%;
+    --primary: 36 95% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 12%;
+    --secondary-foreground: 40 30% 95%;
+    --muted: 220 15% 12%;
+    --muted-foreground: 220 15% 55%;
+    --accent: 27 96% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 40 30% 95%;
+    --border: 220 15% 15%;
+    --input: 220 15% 15%;
+    --ring: 36 95% 52%;
+
+    --glass-bg: 220 20% 8% / 0.6;
+    --glass-border: 36 50% 50% / 0.12;
+    --glass-strong-bg: 220 20% 6% / 0.85;
+    --glow-color: 36 95% 52% / 0.15;
+    --gradient-from: 27 96% 50%;
+    --gradient-to: 42 100% 62%;
+    --gold: 42 90% 55%;
+    --gold-glow: 42 90% 55% / 0.2;
+
+    --sidebar-background: 220 20% 5%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Vazirmatn', 'Inter', 'Plus Jakarta Sans', sans-serif;
+  }
+  html[dir="ltr"] body {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--glass-border));
+  }
+
+  .glass-strong {
+    background: hsl(var(--glass-strong-bg));
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--glass-border));
+  }
+
+  .glass-gold {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--gold) / 0.2);
+    box-shadow: 0 0 20px hsl(var(--gold-glow)), inset 0 1px 0 hsl(var(--gold) / 0.1);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--gradient-from)), hsl(var(--gradient-to)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-gold {
+    background: linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gradient-from)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, hsl(var(--gradient-from)), hsl(var(--gradient-to)));
+  }
+
+  .gradient-bg-gold {
+    background: linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gradient-from)));
+  }
+
+  .glow {
+    box-shadow: 0 0 20px hsl(var(--glow-color)), 0 0 40px hsl(var(--glow-color));
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 10px hsl(var(--glow-color));
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 15px hsl(var(--gold-glow)), 0 0 30px hsl(var(--gold-glow));
+  }
+
+  .glow-border {
+    border: 1px solid hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 15px hsl(var(--glow-color));
+  }
+
+  .glow-border-gold {
+    border: 1px solid hsl(var(--gold) / 0.3);
+    box-shadow: 0 0 15px hsl(var(--gold-glow));
+  }
+
+  .soft-shadow {
+    box-shadow: 0 4px 6px -1px hsl(220 20% 5% / 0.08), 0 10px 15px -3px hsl(220 20% 5% / 0.06);
+  }
+
+  .soft-shadow-lg {
+    box-shadow: 0 10px 25px -5px hsl(220 20% 5% / 0.12), 0 20px 40px -10px hsl(220 20% 5% / 0.08);
+  }
+
+  .premium-card {
+    @apply glass rounded-3xl p-5 transition-all duration-300;
+    &:hover {
+      border-color: hsl(var(--gold) / 0.25);
+      box-shadow: 0 8px 30px hsl(var(--gold-glow));
+      transform: translateY(-2px);
+    }
+  }
+
+  .status-purple {
+    background: linear-gradient(135deg, hsl(270 60% 55% / 0.15), hsl(270 60% 55% / 0.05));
+    border: 1px solid hsl(270 60% 55% / 0.2);
+  }
+  .status-blue {
+    background: linear-gradient(135deg, hsl(210 80% 55% / 0.15), hsl(210 80% 55% / 0.05));
+    border: 1px solid hsl(210 80% 55% / 0.2);
+  }
+  .status-orange {
+    background: linear-gradient(135deg, hsl(27 96% 54% / 0.15), hsl(27 96% 54% / 0.05));
+    border: 1px solid hsl(27 96% 54% / 0.2);
+  }
+  .status-green {
+    background: linear-gradient(135deg, hsl(142 60% 45% / 0.15), hsl(142 60% 45% / 0.05));
+    border: 1px solid hsl(142 60% 45% / 0.2);
+  }
+  .status-red {
+    background: linear-gradient(135deg, hsl(0 70% 55% / 0.15), hsl(0 70% 55% / 0.05));
+    border: 1px solid hsl(0 70% 55% / 0.2);
+  }
+
+  .floating-label-input {
+    @apply relative;
+  }
+
+  .floating-label-input input:focus ~ label,
+  .floating-label-input input:not(:placeholder-shown) ~ label,
+  .floating-label-input textarea:focus ~ label,
+  .floating-label-input textarea:not(:placeholder-shown) ~ label {
+    @apply -translate-y-6 scale-90 text-primary;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}

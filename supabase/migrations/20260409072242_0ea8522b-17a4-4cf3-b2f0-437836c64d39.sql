@@ -1,0 +1,1 @@
+UPDATE profiles SET approval_status = 'approved' WHERE user_id = '831df0c6-9425-4575-ac3d-4a74666b68ca';
