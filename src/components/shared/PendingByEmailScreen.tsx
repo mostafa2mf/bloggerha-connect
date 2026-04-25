@@ -3,7 +3,8 @@ import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, Arrow
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   email: string;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Props) => {
+  const navigate = useNavigate();
   const lang =
     typeof document !== 'undefined' && document.documentElement.lang?.toLowerCase().startsWith('en') ? 'en' : 'fa';
   const isEn = lang === 'en';
@@ -43,6 +45,7 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
       if (data?.exists && data.profile) {
         setProfile(data.profile);
         if (data.profile.approval_status === 'approved') {
+          toast.success(isEn ? 'Account approved. Opening your dashboard…' : 'حساب شما تأیید شد. ورود به داشبورد...');
           if (onApproved) onApproved();
         }
       }
@@ -68,6 +71,16 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
   const isRejected = status === 'rejected';
   const isApproved = status === 'approved';
   const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
+
+   useEffect(() => {
+    if (!isApproved || !profile?.role) return;
+
+    const timer = window.setTimeout(() => {
+      navigate(profile.role === 'business' ? '/dashboard/business' : '/dashboard', { replace: true });
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [isApproved, navigate, profile?.role]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" dir={isEn ? 'ltr' : 'rtl'}>
@@ -170,6 +183,15 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
             {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             {isEn ? 'Check status' : 'بررسی مجدد وضعیت'}
           </button>
+        )}
+
+        {isApproved && profile?.role && (
+          <Button
+            onClick={() => navigate(profile.role === 'business' ? '/dashboard/business' : '/dashboard')}
+            className="w-full rounded-xl"
+          >
+            {isEn ? 'Open dashboard' : 'ورود به داشبورد'}
+          </Button>
         )}
 
         <Link
