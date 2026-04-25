@@ -15,27 +15,42 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
   const [showSplash, setShowSplash] = useState(false);
 
   const publicPaths = ['/', '/register/blogger', '/register/business'];
+  const protectedPaths = ['/dashboard', '/dashboard/business'];
   const isPublic = publicPaths.includes(location.pathname);
+  const isProtected = protectedPaths.includes(location.pathname);
 
   useEffect(() => {
     if (loading) return;
+
+    // Unauthenticated users cannot access dashboard routes.
     if (!user) {
       setShowSplash(false);
+      if (isProtected) {
+        navigate('/', { replace: true });
+      }
       return;
     }
-    if (!isPublic) return;
+
+    const target = userRole === 'business' ? '/dashboard/business' : '/dashboard';
+
     // Authenticated user on a public page → splash + redirect to their area.
     // The dashboard layouts themselves render the PendingApprovalScreen when
     // approval_status !== 'approved', so users without approval still land
     // on the waiting screen instead of the registration form.
-    setShowSplash(true);
-    const timer = setTimeout(() => {
-      const target = userRole === 'business' ? '/dashboard/business' : '/dashboard';
+    if (isPublic) {
+      setShowSplash(true);
+      const timer = setTimeout(() => {
+        navigate(target, { replace: true });
+        setTimeout(() => setShowSplash(false), 200);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+
+    // Keep users on the dashboard that matches their role.
+    if (isProtected && location.pathname !== target) {
       navigate(target, { replace: true });
-      setTimeout(() => setShowSplash(false), 200);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [user, userRole, loading, isPublic, location.pathname, navigate]);
+    }
+  }, [user, userRole, loading, isPublic, isProtected, location.pathname, navigate]);
 
   return (
     <>
