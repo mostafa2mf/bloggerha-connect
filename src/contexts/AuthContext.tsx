@@ -32,30 +32,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // Defer DB call to avoid deadlock inside auth callback
-        setTimeout(() => {
-          fetchUserRole(session.user.id).then(setUserRole);
-        }, 0);
-      } else {
+    let isMounted = true;
+
+    const syncAuthState = async (nextSession: Session | null) => {
+      if (!isMounted) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (!nextSession?.user) {
         setUserRole(null);
+        setLoading(false);
+        return;
       }
+
+      setLoading(true);
+      const role = await fetchUserRole(nextSession.user.id);
+      if (!isMounted) return;
+
+      setUserRole(role);
       setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void syncAuthState(nextSession);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id).then(setUserRole);
-      }
-      setLoading(false);
+    void supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      void syncAuthState(initialSession);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, role: string, username: string) => {
