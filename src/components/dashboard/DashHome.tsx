@@ -39,6 +39,11 @@ const DashHome = ({ onNavigate }: Props) => {
         </div>
       </motion.div>
 
+      {/* Profile completion */}
+      <motion.div variants={item}>
+        <ProfileCompletionCard role="blogger" onGoToProfile={() => onNavigate?.('profile')} />
+      </motion.div>
+
       {/* 4 Shortcut Cards - Pastel & Colorful */}
       <div className="grid grid-cols-2 gap-4">
         {shortcuts.map((s) => (
