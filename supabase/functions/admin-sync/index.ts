@@ -172,7 +172,22 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        const status = approval?.status || "pending";
+        let localProfileStatus: string | null = null;
+        if (data.entity_type === "influencer" || data.entity_type === "business") {
+          try {
+            const { data: localProfile } = await localDb
+              .from("profiles")
+              .select("approval_status")
+              .eq("user_id", data.entity_id)
+              .maybeSingle();
+            localProfileStatus = localProfile?.approval_status || null;
+          } catch (_) {}
+        }
+
+        const remoteStatus = approval?.status || "pending";
+        const status = remoteStatus === "pending" && localProfileStatus === "approved"
+          ? "approved"
+          : remoteStatus;
 
         // Sync approval status back to local DB
         if (data.entity_type === "influencer" || data.entity_type === "business") {
