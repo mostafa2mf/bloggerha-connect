@@ -39,6 +39,11 @@ const BizHome = ({ onNavigate }: Props) => {
         </div>
       </motion.div>
 
+      {/* Profile completion */}
+      <motion.div variants={item}>
+        <ProfileCompletionCard role="business" onGoToProfile={() => onNavigate?.('profile')} />
+      </motion.div>
+
       {/* 6 Shortcut Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {shortcuts.map((s) => (
