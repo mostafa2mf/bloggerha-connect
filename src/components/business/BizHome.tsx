@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Megaphone, Users, MessageCircle, User } from 'lucide-react';
+import ProfileCompletionCard from '@/components/shared/ProfileCompletionCard';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -36,6 +37,11 @@ const BizHome = ({ onNavigate }: Props) => {
             {lang === 'fa' ? 'به پنل کسب‌وکار خوش آمدید' : 'Welcome to your business panel'}
           </p>
         </div>
+      </motion.div>
+
+      {/* Profile completion */}
+      <motion.div variants={item}>
+        <ProfileCompletionCard role="business" onGoToProfile={() => onNavigate?.('profile')} />
       </motion.div>
 
       {/* 6 Shortcut Cards */}

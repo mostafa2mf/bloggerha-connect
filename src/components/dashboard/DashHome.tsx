@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, MessageCircle, User, Upload } from 'lucide-react';
+import ProfileCompletionCard from '@/components/shared/ProfileCompletionCard';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -36,6 +37,11 @@ const DashHome = ({ onNavigate }: Props) => {
             {lang === 'fa' ? 'به داشبورد خوش آمدید' : 'Welcome to your dashboard'}
           </p>
         </div>
+      </motion.div>
+
+      {/* Profile completion */}
+      <motion.div variants={item}>
+        <ProfileCompletionCard role="blogger" onGoToProfile={() => onNavigate?.('profile')} />
       </motion.div>
 
       {/* 4 Shortcut Cards - Pastel & Colorful */}
