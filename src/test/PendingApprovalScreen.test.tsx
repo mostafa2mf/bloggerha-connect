@@ -19,16 +19,15 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-// Programmable profile state returned by supabase mock
 const state = vi.hoisted(() => ({
-  state.currentProfile: {
+  currentProfile: {
     display_name: 'Tester',
     username: 'tester',
     approval_status: 'pending',
     role: 'blogger',
   } as any,
-  state.removeChannelMock: vi.fn(),
-  state.subscribeMock: vi.fn(() => ({ unsubscribe: () => {} })),
+  removeChannelMock: vi.fn(),
+  subscribeMock: vi.fn(() => ({ unsubscribe: () => {} })),
 }));
 
 vi.mock('@/integrations/supabase/client', () => {
@@ -80,7 +79,6 @@ describe('PendingApprovalScreen — negative flows', () => {
     await waitFor(() =>
       expect(screen.getByText(/Pending Admin Approval/i)).toBeInTheDocument()
     );
-    // Refresh button visible (not rejected)
     expect(screen.getByText(/Check status/i)).toBeInTheDocument();
   });
 
@@ -90,12 +88,10 @@ describe('PendingApprovalScreen — negative flows', () => {
     await waitFor(() =>
       expect(screen.getByText(/Account Rejected/i)).toBeInTheDocument()
     );
-    // Refresh button hidden when rejected
     expect(screen.queryByText(/Check status/i)).not.toBeInTheDocument();
   });
 
   it('shows pending UI for revoked approval (was approved → set back to pending)', async () => {
-    // Simulate admin revoking approval: status flips back to pending
     state.currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'business' };
     renderScreen();
     await waitFor(() =>
