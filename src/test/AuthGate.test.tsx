@@ -103,6 +103,27 @@ describe('AuthGate — logged-in users on public pages', () => {
     expect(screen.queryByTestId('logo-splash')).not.toBeInTheDocument();
   });
 
+
+  it('redirects unauthenticated visitor away from /dashboard to /', async () => {
+    mockAuth.mockReturnValue({ user: null, userRole: null, loading: false });
+    renderAt('/dashboard');
+    await waitFor(
+      () => expect(screen.getByTestId('landing')).toBeInTheDocument(),
+      { timeout: 1000 }
+    );
+    expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
+  });
+
+  it('redirects authenticated business user from /dashboard to /dashboard/business', async () => {
+    mockAuth.mockReturnValue({ user: { id: 'u4' }, userRole: 'business', loading: false });
+    renderAt('/dashboard');
+    await waitFor(
+      () => expect(screen.getByTestId('biz-dashboard')).toBeInTheDocument(),
+      { timeout: 1000 }
+    );
+    expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
+  });
+
   it('does not redirect while auth is still loading', async () => {
     mockAuth.mockReturnValue({ user: null, userRole: null, loading: true });
     renderAt('/');
