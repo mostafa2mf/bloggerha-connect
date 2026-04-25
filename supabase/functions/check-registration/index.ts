@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("user_id, username, display_name, full_name, brand_name, role, approval_status, instagram, followers_count, category, city, created_at")
+      .select("user_id, username, display_name, brand_name, role, approval_status")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 

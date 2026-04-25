@@ -8,6 +8,7 @@ import { MapPin, Calendar, Loader2, FolderOpen, CheckCircle2, Clock, ChevronLeft
 import { toast } from 'sonner';
 import jalaali from 'jalaali-js';
 import SkeletonCard from '@/components/shared/SkeletonCard';
+import { isCampaignVisibleToBlogger } from '@/lib/campaignVisibility';
 
 function toJalaliStr(dateStr: string) {
   const d = new Date(dateStr);
@@ -73,11 +74,12 @@ const DashCampaigns = ({ onGoBack }: { onGoBack?: () => void }) => {
     const { data } = await supabase
       .from('campaigns')
       .select('*')
-      .eq('admin_approval_status', 'approved')
-      .in('status', ['active', 'scheduled'])
+      .in('admin_approval_status', ['approved', 'accepted', 'active', 'verified'])
+      .in('status', ['active', 'scheduled', 'approved', 'live'])
       .order('created_at', { ascending: false })
       .limit(50);
-    setCampaigns(data || []);
+
+    setCampaigns((data || []).filter((c: any) => isCampaignVisibleToBlogger(c.admin_approval_status, c.status)));
     setLoading(false);
   };
 

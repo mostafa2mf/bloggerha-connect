@@ -3,6 +3,7 @@ import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, Arrow
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { isApprovedStatus, normalizeApprovalStatus } from '@/lib/approvalStatus';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
@@ -21,6 +22,7 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
 
   const [profile, setProfile] = useState<any>(initialProfile || null);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null);
 
   // Initial fetch if not provided
   useEffect(() => {
@@ -29,11 +31,24 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email]);
 
-  // Auto-poll every 15s
+  // Auto-poll every 20s
   useEffect(() => {
     if (!email) return;
-    const id = setInterval(fetchStatus, 15000);
+    const id = setInterval(fetchStatus, 20000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStatus();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email]);
 
@@ -42,9 +57,10 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
       const { data } = await supabase.functions.invoke('check-registration', {
         body: { email },
       });
+      setLastCheckedAt(new Date());
       if (data?.exists && data.profile) {
         setProfile(data.profile);
-        if (data.profile.approval_status === 'approved') {
+        if (isApprovedStatus(data.profile.approval_status)) {
           toast.success(isEn ? 'Account approved. Opening your dashboard…' : 'حساب شما تأیید شد. ورود به داشبورد...');
           if (onApproved) onApproved();
         }
@@ -57,9 +73,9 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchStatus();
-    if (profile?.approval_status === 'approved') {
+    if (isApprovedStatus(profile?.approval_status)) {
       toast.success(isEn ? 'Approved!' : 'حساب شما تأیید شد! 🎉');
-    } else if (profile?.approval_status === 'rejected') {
+    } else if (normalizeApprovalStatus(profile?.approval_status) === 'rejected') {
       toast.error(isEn ? 'Rejected.' : 'متأسفانه حساب شما رد شد.');
     } else {
       toast.info(isEn ? 'Still under review...' : 'هنوز در حال بررسی...');
@@ -67,7 +83,7 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
     setRefreshing(false);
   };
 
-  const status = profile?.approval_status || 'pending';
+  const status = normalizeApprovalStatus(profile?.approval_status);
   const isRejected = status === 'rejected';
   const isApproved = status === 'approved';
   const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
@@ -168,9 +184,17 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
         </div>
 
         {!isApproved && !isRejected && (
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Loader2 size={14} className="animate-spin text-primary" />
-            {isEn ? 'Status: Under review... (auto-updates)' : 'وضعیت: در حال بررسی... (به‌روزرسانی خودکار)'}
+          <div className="space-y-1">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 size={14} className="animate-spin text-primary" />
+              {isEn ? 'Status: Under review... (auto-updates)' : 'وضعیت: در حال بررسی... (به‌روزرسانی خودکار)'}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {isEn ? 'Last checked at:' : 'آخرین بررسی:'}{' '}
+              {lastCheckedAt
+                ? lastCheckedAt.toLocaleTimeString(isEn ? 'en-US' : 'fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                : (isEn ? 'not yet' : 'هنوز انجام نشده')}
+            </p>
           </div>
         )}
 

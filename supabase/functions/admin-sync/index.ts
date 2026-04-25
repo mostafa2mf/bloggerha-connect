@@ -7,15 +7,38 @@ const corsHeaders = {
 };
 
 // Admin Supabase (external)
-const ADMIN_URL = "https://iketcqfmrhdpgmbacxpy.supabase.co";
-const ADMIN_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZXRjcWZtcmhkcGdtYmFjeHB5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTU2NzA3MiwiZXhwIjoyMDkxMTQzMDcyfQ.S8x01R0g8cfnukrviwf2AvFh6x3n7aS52qL5GobZDPE";
-
-const adminDb = createClient(ADMIN_URL, ADMIN_SERVICE_KEY);
+const ADMIN_URL = Deno.env.get("ADMIN_SUPABASE_URL");
+const ADMIN_SERVICE_KEY = Deno.env.get("ADMIN_SUPABASE_SERVICE_ROLE_KEY");
 
 // Local Supabase (this project)
 const LOCAL_URL = Deno.env.get("SUPABASE_URL")!;
 const LOCAL_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const localDb = createClient(LOCAL_URL, LOCAL_SERVICE_KEY);
+
+
+function normalizeApprovalStatus(status: string | null | undefined): 'approved' | 'pending' | 'rejected' {
+  const value = (status || '').toLowerCase().trim();
+  if (["approved", "accepted", "active", "verified"].includes(value)) return "approved";
+  if (["rejected", "denied", "blocked"].includes(value)) return "rejected";
+  return "pending";
+}
+
+
+
+function normalizeCampaignStatus(status: string | null | undefined): string {
+  const value = (status || '').toLowerCase().trim();
+  if (["approved", "live"].includes(value)) return "active";
+  return value || "draft";
+}
+
+function nextCampaignStatusForApproval(status: string, currentStatus: string | null | undefined): string {
+  const normalizedCurrent = normalizeCampaignStatus(currentStatus);
+  if (status === "approved" && ["pending", "draft", ""].includes(normalizedCurrent)) {
+    return "active";
+  }
+  return normalizedCurrent;
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,6 +46,15 @@ serve(async (req) => {
   }
 
   try {
+    if (!ADMIN_URL || !ADMIN_SERVICE_KEY) {
+      return new Response(JSON.stringify({ error: "Admin sync is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const adminDb = createClient(ADMIN_URL, ADMIN_SERVICE_KEY);
+
     const { action, data } = await req.json();
 
     switch (action) {
@@ -172,8 +204,21 @@ serve(async (req) => {
 
         if (error) throw error;
 
+        // Fallback source-of-truth for entities where admin UI may update status directly
+        // on the entity table instead of writing a row in approvals.
+        let entityStatus: string | null = null;
         let localProfileStatus: string | null = null;
         if (data.entity_type === "influencer" || data.entity_type === "business") {
+          try {
+            const table = data.entity_type === "influencer" ? "influencers" : "businesses";
+            const { data: entityRow } = await adminDb
+              .from(table)
+              .select("status")
+              .eq("id", data.entity_id)
+              .maybeSingle();
+            entityStatus = entityRow?.status || null;
+          } catch (_) {}
+
           try {
             const { data: localProfile } = await localDb
               .from("profiles")
@@ -184,10 +229,17 @@ serve(async (req) => {
           } catch (_) {}
         }
 
-        const remoteStatus = approval?.status || "pending";
-        const status = remoteStatus === "pending" && localProfileStatus === "approved"
-          ? "approved"
-          : remoteStatus;
+        const normalizedApprovalStatus = normalizeApprovalStatus(approval?.status);
+        const normalizedEntityStatus = normalizeApprovalStatus(entityStatus);
+        const normalizedLocalStatus = normalizeApprovalStatus(localProfileStatus);
+
+        // Priority:
+        // 1) explicit approvals row if it has non-pending state
+        // 2) entity table status (influencers/businesses)
+        // 3) local profile status
+        const status = normalizedApprovalStatus !== "pending"
+          ? normalizedApprovalStatus
+          : (normalizedEntityStatus !== "pending" ? normalizedEntityStatus : normalizedLocalStatus);
 
         // Sync approval status back to local DB
         if (data.entity_type === "influencer" || data.entity_type === "business") {
@@ -198,8 +250,17 @@ serve(async (req) => {
           } catch (_) {}
         } else if (data.entity_type === "campaign") {
           try {
+            const { data: existingCampaign } = await localDb
+              .from("campaigns")
+              .select("status")
+              .eq("id", data.entity_id)
+              .maybeSingle();
+
             await localDb.from("campaigns")
-              .update({ admin_approval_status: status })
+              .update({
+                admin_approval_status: status,
+                status: nextCampaignStatusForApproval(status, existingCampaign?.status || null),
+              })
               .eq("id", data.entity_id);
           } catch (_) {}
         }

@@ -31,6 +31,7 @@ import {
   FOLLOWER_OPTIONS,
 } from "@/lib/registerValidation";
 import type { ZodError } from "zod";
+import { isApprovedStatus } from '@/lib/approvalStatus';
 
 interface Props {
   type: "blogger" | "business";
@@ -146,7 +147,7 @@ const RegisterForm = ({ type }: Props) => {
         });
         if (cancelled) return;
         if (data?.exists && data.profile) {
-          if (data.profile.approval_status === 'approved') {
+          if (isApprovedStatus(data.profile.approval_status)) {
             localStorage.removeItem(STORAGE_KEY);
             setPendingEmail(null);
             setPendingProfile(null);

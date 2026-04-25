@@ -3,98 +3,169 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Clock, Shield, LogOut, Loader2, CheckCircle, Instagram, Users, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeApprovalStatus } from '@/lib/approvalStatus';
+import { checkApproval } from '@/lib/adminSync';
 
 interface Props {
   onApproved?: () => void;
 }
 
+type Approval = 'approved' | 'pending' | 'rejected';
+
+const POLL_INTERVAL_MS = 20_000;
+
 const PendingApprovalScreen = ({ onApproved }: Props) => {
   const { lang } = useLanguage();
-  const { signOut, user } = useAuth();
+  const { signOut, user, userRole, refreshAuth } = useAuth();
   const navigate = useNavigate();
+
   const [loggingOut, setLoggingOut] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Load profile info
+  const checkingRef = useRef(false);
+
+  const roleForTarget = (role?: string | null) => (role === 'business' ? '/dashboard/business' : '/dashboard');
+
+  const handleApprovedRedirect = useCallback(async (resolvedRole?: string | null) => {
+    const target = roleForTarget(resolvedRole || profile?.role || userRole);
+
+    toast.success(
+      lang === 'fa'
+        ? 'حساب شما تأیید شد. در حال انتقال به داشبورد...'
+        : 'Your account has been approved. Redirecting to your dashboard...'
+    );
+
+    onApproved?.();
+
+    await refreshAuth();
+    navigate(target, { replace: true });
+
+    // Fallback hard refresh in case stale in-memory state still blocks route.
+    setTimeout(async () => {
+      try {
+        const { data: verifyProfile } = await supabase
+          .from('profiles')
+          .select('approval_status')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+
+        if (normalizeApprovalStatus(verifyProfile?.approval_status) === 'approved') {
+          await supabase.auth.refreshSession();
+          window.location.assign(target);
+        }
+      } catch (_) {
+        window.location.assign(target);
+      }
+    }, 1000);
+  }, [lang, navigate, onApproved, profile?.role, refreshAuth, user?.id, userRole]);
+
+  const syncStatus = useCallback(async (manual = false) => {
+    if (!user || checkingRef.current) return;
+
+    checkingRef.current = true;
+    setSyncing(true);
+    setSyncError(null);
+
+    try {
+      const { data: localProfile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('display_name, username, instagram, followers_count, category, role, approval_status, created_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileErr) throw profileErr;
+
+      if (localProfile) {
+        setProfile(localProfile);
+      }
+
+      const entityType = (localProfile?.role || userRole) === 'business' ? 'business' : 'influencer';
+      const syncRes: any = await checkApproval(entityType, user.id, user.id);
+      const normalized: Approval = normalizeApprovalStatus(syncRes?.approval?.status || localProfile?.approval_status);
+
+      if (normalized === 'approved') {
+        await handleApprovedRedirect(localProfile?.role || userRole);
+        return;
+      }
+
+      if (normalized === 'rejected') {
+        setProfile((prev: any) => ({ ...(prev || {}), ...(localProfile || {}), approval_status: 'rejected' }));
+      }
+
+      if (manual && normalized === 'pending') {
+        toast.info(lang === 'fa' ? 'هنوز در حال بررسی...' : 'Still under review...');
+      }
+
+      setLastCheckedAt(new Date());
+    } catch (err) {
+      console.error('Approval sync failed:', err);
+      setSyncError(lang === 'fa' ? 'خطا در بررسی وضعیت. دوباره تلاش کنید.' : 'Failed to refresh status. Please try again.');
+      if (manual) {
+        toast.error(lang === 'fa' ? 'خطا در بررسی وضعیت' : 'Failed to check approval status');
+      }
+    } finally {
+      checkingRef.current = false;
+      setSyncing(false);
+      setRefreshing(false);
+    }
+  }, [handleApprovedRedirect, lang, user, userRole]);
+
+  // Initial check on mount + profile load.
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('profiles')
-      .select('display_name, username, instagram, followers_count, category, role, approval_status, created_at')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setProfile(data);
-      });
-  }, [user]);
+    void syncStatus();
+  }, [user, syncStatus]);
 
-  // Realtime listener + polling for approval status changes
+  // Realtime listener (best effort) + periodic polling + tab visibility sync.
   useEffect(() => {
     if (!user) return;
-
-    const handleApproved = () => {
-      toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Your account has been approved! 🎉');
-      if (onApproved) onApproved();
-      else window.location.reload();
-    };
 
     const channel = supabase
-      .channel('approval-status')
+      .channel(`approval-status-${user.id}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const newStatus = (payload.new as any)?.approval_status;
-          if (newStatus === 'approved') handleApproved();
-          else if (newStatus === 'rejected') {
-            toast.error(lang === 'fa' ? 'متأسفانه حساب شما رد شد.' : 'Your account has been rejected.');
-            setProfile((prev: any) => prev ? { ...prev, approval_status: 'rejected' } : prev);
+        async (payload) => {
+          const newStatus = normalizeApprovalStatus((payload.new as any)?.approval_status);
+          if (newStatus === 'approved') {
+            await handleApprovedRedirect((payload.new as any)?.role || userRole);
+          } else if (newStatus === 'rejected') {
+            setProfile((prev: any) => prev ? { ...prev, approval_status: 'rejected' } : { approval_status: 'rejected' });
           }
+          setLastCheckedAt(new Date());
         }
       )
       .subscribe();
 
-    // Polling fallback every 8s — calls admin-sync to fetch latest status from admin DB
-    const role = profile?.role === 'business' ? 'business' : 'influencer';
-    const poll = setInterval(async () => {
-      try {
-        const { checkApproval } = await import('@/lib/adminSync');
-        const result: any = await checkApproval(role, user.id, user.id);
-        const status = result?.approval?.status;
-        if (status === 'approved') handleApproved();
-      } catch (_) {}
-    }, 8000);
+    const interval = window.setInterval(() => {
+      void syncStatus();
+    }, POLL_INTERVAL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void syncStatus();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
       supabase.removeChannel(channel);
-      clearInterval(poll);
     };
-  }, [user, lang, onApproved, profile?.role]);
+  }, [handleApprovedRedirect, syncStatus, user, userRole]);
 
   const handleRefresh = async () => {
-    if (!user) return;
     setRefreshing(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('approval_status')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (data?.approval_status === 'approved') {
-      toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Approved!');
-      if (onApproved) {
-        onApproved();
-      } else {
-        window.location.reload();
-      }
-    } else {
-      toast.info(lang === 'fa' ? 'هنوز در حال بررسی...' : 'Still under review...');
-    }
-    setRefreshing(false);
+    await syncStatus(true);
   };
 
   const handleLogout = async () => {
@@ -104,7 +175,17 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     navigate('/');
   };
 
-  const isRejected = profile?.approval_status === 'rejected';
+  const normalizedStatus = normalizeApprovalStatus(profile?.approval_status);
+  const isRejected = normalizedStatus === 'rejected';
+
+  const formatLastChecked = () => {
+    if (!lastCheckedAt) return lang === 'fa' ? 'هنوز بررسی نشده' : 'Not checked yet';
+    return lastCheckedAt.toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
@@ -113,7 +194,6 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
         animate={{ opacity: 1, scale: 1 }}
         className="glass-strong rounded-3xl p-10 max-w-md w-full text-center space-y-6"
       >
-        {/* Icon */}
         <motion.div
           animate={isRejected ? {} : { rotate: [0, 10, -10, 0] }}
           transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
@@ -124,7 +204,6 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
           <Clock size={36} className="text-primary-foreground" />
         </motion.div>
 
-        {/* Title & Description */}
         <div>
           <h1 className="text-2xl font-bold gradient-text mb-2">
             {isRejected
@@ -137,12 +216,11 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
                 ? 'متأسفانه درخواست ثبت‌نام شما توسط ادمین رد شده است. لطفاً با پشتیبانی تماس بگیرید.'
                 : 'Unfortunately your registration has been rejected. Please contact support.')
               : (lang === 'fa'
-                ? 'درخواست ثبت‌نام شما ارسال شده و در حال بررسی توسط تیم ادمین است. پس از تأیید، به‌صورت خودکار به داشبورد هدایت خواهید شد.'
-                : 'Your registration is being reviewed. You will be automatically redirected to the dashboard after approval.')}
+                ? 'وضعیت حساب شما هر ۲۰ ثانیه بررسی می‌شود. پس از تأیید، به‌صورت خودکار به داشبورد هدایت خواهید شد.'
+                : 'Your status is checked every 20 seconds. You will be automatically redirected after approval.')}
           </p>
         </div>
 
-        {/* Profile Info Card */}
         {profile && (
           <div className="glass rounded-2xl p-4 space-y-3 text-start">
             <div className="flex items-center gap-2">
@@ -155,9 +233,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
             {profile.instagram && (
               <div className="flex items-center gap-2">
                 <Instagram size={16} className="text-primary shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">
-                  {profile.instagram}
-                </span>
+                <span className="text-xs text-muted-foreground truncate">{profile.instagram}</span>
               </div>
             )}
             {profile.followers_count > 0 && (
@@ -165,9 +241,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
                 <Users size={16} className="text-primary shrink-0" />
                 <span className="text-xs text-muted-foreground">
                   {lang === 'fa' ? 'فالوور:' : 'Followers:'}{' '}
-                  <span className="text-foreground font-medium">
-                    {Number(profile.followers_count).toLocaleString('fa-IR')}
-                  </span>
+                  <span className="text-foreground font-medium">{Number(profile.followers_count).toLocaleString('fa-IR')}</span>
                 </span>
               </div>
             )}
@@ -183,37 +257,30 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
           </div>
         )}
 
-        {/* What admin checks */}
-        <div className="glass rounded-2xl p-4 flex items-center gap-3">
-          <Shield size={20} className="text-primary shrink-0" />
-          <p className="text-xs text-muted-foreground text-start">
-            {lang === 'fa'
-              ? 'ادمین پروفایل، تعداد فالوور و اطلاعات اینستاگرام شما را بررسی می‌کند. این فرآیند معمولاً کمتر از ۲۴ ساعت طول می‌کشد.'
-              : 'Admin will review your profile, followers, and Instagram info. This usually takes less than 24 hours.'}
-          </p>
-        </div>
-
-        {/* Status indicator */}
         {!isRejected && (
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Loader2 size={14} className="animate-spin text-primary" />
-            {lang === 'fa' ? 'وضعیت: در حال بررسی... (به‌روزرسانی خودکار)' : 'Status: Under review... (auto-updates)'}
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              {(syncing || refreshing) ? <Loader2 size={14} className="animate-spin text-primary" /> : <RefreshCw size={14} className="text-primary" />}
+              {lang === 'fa' ? 'بررسی خودکار هر ۲۰ ثانیه' : 'Auto-check every 20s'}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {lang === 'fa' ? 'آخرین بررسی:' : 'Last checked:'} {formatLastChecked()}
+            </p>
+            {syncError && <p className="text-[11px] text-destructive">{syncError}</p>}
           </div>
         )}
 
-        {/* Manual refresh button */}
         {!isRejected && (
           <button
             onClick={handleRefresh}
-            disabled={refreshing}
-            className="w-full glass rounded-xl py-3 text-sm font-medium hover:bg-primary/10 transition-colors flex items-center justify-center gap-2 text-primary"
+            disabled={refreshing || syncing}
+            className="w-full glass rounded-xl py-3 text-sm font-medium hover:bg-primary/10 transition-colors flex items-center justify-center gap-2 text-primary disabled:opacity-60"
           >
-            {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {lang === 'fa' ? 'بررسی مجدد وضعیت' : 'Check status'}
+            {(refreshing || syncing) ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {lang === 'fa' ? 'بررسی دوباره وضعیت' : 'Check approval status'}
           </button>
         )}
 
-        {/* Logout */}
         <button
           onClick={handleLogout}
           disabled={loggingOut}

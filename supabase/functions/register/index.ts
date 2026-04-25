@@ -9,8 +9,8 @@ const RATE_LIMIT_WINDOW_MIN = 10;
 const RATE_LIMIT_MAX = 5;
 
 // Admin DB (external) for cross-project sync
-const ADMIN_URL = "https://iketcqfmrhdpgmbacxpy.supabase.co";
-const ADMIN_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZXRjcWZtcmhkcGdtYmFjeHB5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTU2NzA3MiwiZXhwIjoyMDkxMTQzMDcyfQ.S8x01R0g8cfnukrviwf2AvFh6x3n7aS52qL5GobZDPE";
+const ADMIN_URL = Deno.env.get("ADMIN_SUPABASE_URL");
+const ADMIN_SERVICE_KEY = Deno.env.get("ADMIN_SUPABASE_SERVICE_ROLE_KEY");
 
 async function checkRateLimit(supabase: any, ip: string): Promise<boolean> {
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MIN * 60 * 1000).toISOString();
@@ -165,6 +165,11 @@ function validateBusiness(body: any, errors: FieldErrors) {
 // Sync to admin DB - never throws (registration must succeed even if sync fails)
 async function syncToAdmin(role: string, profileData: Record<string, any>) {
   try {
+    if (!ADMIN_URL || !ADMIN_SERVICE_KEY) {
+      console.error('Admin sync skipped: missing ADMIN_SUPABASE_* env vars');
+      return;
+    }
+
     const adminDb = createClient(ADMIN_URL, ADMIN_SERVICE_KEY);
     if (role === "blogger") {
       await adminDb.from("influencers").upsert({

@@ -5,7 +5,10 @@ const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-sy
 async function callAdminSync(action: string, data: Record<string, any>) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const token = session?.access_token;
+    if (!token) {
+      return { success: false, error: 'No active session' };
+    }
 
     const res = await fetch(FUNCTION_URL, {
       method: "POST",

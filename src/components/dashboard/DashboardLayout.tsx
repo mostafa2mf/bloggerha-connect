@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { checkApproval } from '@/lib/adminSync';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { isApprovedStatus, normalizeApprovalStatus } from '@/lib/approvalStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import DashTopBar from './DashTopBar';
 import DashHome from './DashHome';
@@ -49,13 +50,13 @@ const DashboardLayout = () => {
         .select('approval_status')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (profile?.approval_status === 'approved') {
+      if (isApprovedStatus(profile?.approval_status)) {
         setApprovalStatus('approved');
         setChecking(false);
         return;
       }
       const result = await checkApproval('influencer', user.id, user.id);
-      const status = result?.approval?.status || profile?.approval_status || 'pending';
+      const status = normalizeApprovalStatus(result?.approval?.status || profile?.approval_status);
       setApprovalStatus(status);
       setChecking(false);
     };

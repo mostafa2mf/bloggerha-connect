@@ -11,6 +11,7 @@ import BusinessRegister from "./pages/BusinessRegister.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import BusinessDashboard from "./pages/BusinessDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import AuthGate from "./components/shared/AuthGate";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
                 <Route path="/register/business" element={<BusinessRegister />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/business" element={<BusinessDashboard />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </AuthGate>

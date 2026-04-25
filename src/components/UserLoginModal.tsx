@@ -4,7 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Users, Building2, Mail, Lock, User as UserIcon, Loader2, MessageSquare, ShieldAlert } from 'lucide-react';
+import { X, Users, Building2, Mail, Lock, Loader2, MessageSquare, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminChatPanel from '@/components/shared/AdminChatPanel';
 import { useRateLimit } from '@/hooks/useRateLimit';
@@ -19,15 +19,13 @@ type Step = 'selectRole' | 'login' | 'forgotPassword';
 
 const UserLoginModal = ({ isOpen, onClose }: Props) => {
   const { t, lang } = useLanguage();
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('selectRole');
   const [role, setRole] = useState<'blogger' | 'business'>('blogger');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignup, setIsSignup] = useState(false);
   const { isLocked, remainingTime, checkLock, recordAttempt, resetAttempts, getAttemptsLeft } = useRateLimit();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [lockCountdown, setLockCountdown] = useState(0);
@@ -104,34 +102,17 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
     await redirectByRole();
   };
 
-  const handleSignup = async () => {
-    if (!email || !password || !username) {
-      toast.error(t('auth.fillFields'));
-      return;
-    }
-    if (password.length < 8) {
-      toast.error(lang === 'fa' ? 'رمز عبور حداقل ۸ کاراکتر' : 'Password min 8 characters');
-      return;
-    }
-    setLoading(true);
-    const { error } = await signUp(email, password, role, username);
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    logAction('signup', { email, role });
-    toast.success(t('auth.signupSuccess'));
+  const handleSignup = () => {
+    // Signup must go through /register/* flow (Edge Function + profile enrichment).
+    // Avoid direct auth.signup from modal to prevent incomplete profiles.
     onClose();
-    await redirectByRole(role);
+    navigate(role === 'business' ? '/register/business' : '/register/blogger');
   };
 
   const resetModal = () => {
     setStep('selectRole');
     setEmail('');
     setPassword('');
-    setUsername('');
-    setIsSignup(false);
     onClose();
   };
 
@@ -200,7 +181,7 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
                   className="space-y-5"
                 >
                   <h2 className="text-xl font-bold gradient-text">
-                    {isSignup ? t('auth.signup') : t('auth.login')}
+                    {t('auth.login')}
                   </h2>
 
                   {/* Rate limit warning */}
@@ -223,20 +204,6 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
                       </div>
                     </motion.div>
                   )}
-
-                  {isSignup && (
-                    <div className="relative">
-                      <UserIcon size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        type="text"
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
-                        placeholder={t('auth.username')}
-                        className={inputClass}
-                      />
-                    </div>
-                  )}
-
                   <div className="relative">
                     <Mail size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -260,33 +227,31 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
                   </div>
 
                   <button
-                    onClick={isSignup ? handleSignup : handleLogin}
+                    onClick={handleLogin}
                     disabled={loading || isLocked}
                     className="w-full gradient-bg text-primary-foreground font-medium py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loading && <Loader2 size={16} className="animate-spin" />}
-                    {loading ? '' : isSignup ? t('auth.signup') : t('auth.login')}
+                    {loading ? '' : t('auth.login')}
                   </button>
 
                   {/* Forgot password */}
-                  {!isSignup && (
-                    <button
-                      onClick={() => setStep('forgotPassword')}
-                      className="w-full text-center text-xs text-primary/70 hover:text-primary transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <MessageSquare size={12} />
-                      {lang === 'fa' ? 'رمز عبور را فراموش کرده‌اید؟' : 'Forgot your password?'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setStep('forgotPassword')}
+                    className="w-full text-center text-xs text-primary/70 hover:text-primary transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <MessageSquare size={12} />
+                    {lang === 'fa' ? 'رمز عبور را فراموش کرده‌اید؟' : 'Forgot your password?'}
+                  </button>
 
                   <div className="text-center">
                     <button
-                      onClick={() => setIsSignup(!isSignup)}
+                      onClick={handleSignup}
                       className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {isSignup ? t('auth.hasAccount') : t('auth.noAccount')}{' '}
+                      {lang === 'fa' ? 'حساب ندارید؟' : "Don't have an account?"}{' '}
                       <span className="text-primary font-medium">
-                        {isSignup ? t('auth.login') : t('auth.signup')}
+                        {lang === 'fa' ? 'ثبت‌نام کامل' : 'Start full registration'}
                       </span>
                     </button>
                   </div>

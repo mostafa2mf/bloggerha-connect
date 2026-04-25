@@ -124,6 +124,7 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
       }
 
       let error;
+      let syncedCampaignId = editCampaign?.id || '';
       if (editCampaign?.id) {
         const updatePayload: any = {
           title: form.title,
@@ -132,7 +133,7 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
           category: form.category || null,
           start_date: form.start_date || null,
           end_date: form.end_date || null,
-          status: 'pending',
+          status: 'draft',
           admin_approval_status: 'pending',
         };
         if (cover_image) updatePayload.cover_image = cover_image;
@@ -150,15 +151,16 @@ const CreateCampaignModal = ({ isOpen, onClose, onCreated, editCampaign }: Props
           start_date: form.start_date || null,
           end_date: form.end_date || null,
           cover_image,
-          status: 'pending',
-        });
+          status: 'draft',
+        }).select('id').single();
         error = res.error;
+        syncedCampaignId = res.data?.id || syncedCampaignId;
       }
 
       if (error) throw error;
 
       syncCampaign({
-        id: editCampaign?.id || crypto.randomUUID(),
+        id: syncedCampaignId,
         title: form.title,
         business_id: user.id,
         city: form.city,

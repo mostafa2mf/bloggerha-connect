@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { syncInfluencer, syncBusiness } from '@/lib/adminSync';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -8,9 +7,9 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   userRole: string | null;
-  signUp: (email: string, password: string, role: string, username: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,28 +67,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, role: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { role, username } },
-    });
-
-    if (!error && data.user) {
-      const profileData = { user_id: data.user.id, username, display_name: username, email };
-      if (role === 'blogger') {
-        syncInfluencer(profileData).catch(console.error);
-      } else if (role === 'business') {
-        syncBusiness(profileData).catch(console.error);
-      }
-    }
-
-    return { error };
-  };
-
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
+  };
+
+
+  const refreshAuth = async () => {
+    const { data: { session: freshSession } } = await supabase.auth.getSession();
+    setSession(freshSession);
+    setUser(freshSession?.user ?? null);
+
+    if (!freshSession?.user) {
+      setUserRole(null);
+      return;
+    }
+
+    const role = await fetchUserRole(freshSession.user.id);
+    setUserRole(role);
   };
 
   const signOut = async () => {
@@ -100,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, userRole, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, userRole, signIn, signOut, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );
