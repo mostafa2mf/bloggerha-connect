@@ -208,7 +208,7 @@ async function syncToAdmin(role: string, profileData: Record<string, any>) {
         entity_type: "business",
         entity_id: profileData.user_id,
         status: "pending",
-      }).catch(() => {});
+      });
 
       await adminDb.from("activity_log").insert({
         type: "business_registered",
