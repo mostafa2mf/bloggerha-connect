@@ -21,14 +21,14 @@ vi.mock('react-router-dom', async () => {
 
 // Programmable profile state returned by supabase mock
 const state = vi.hoisted(() => ({
-  currentProfile: {
+  state.currentProfile: {
     display_name: 'Tester',
     username: 'tester',
     approval_status: 'pending',
     role: 'blogger',
   } as any,
-  removeChannelMock: vi.fn(),
-  subscribeMock: vi.fn(() => ({ unsubscribe: () => {} })),
+  state.removeChannelMock: vi.fn(),
+  state.subscribeMock: vi.fn(() => ({ unsubscribe: () => {} })),
 }));
 
 vi.mock('@/integrations/supabase/client', () => {
@@ -70,12 +70,12 @@ describe('PendingApprovalScreen — negative flows', () => {
       signOut: vi.fn().mockResolvedValue(undefined),
     });
     navigateMock.mockReset();
-    removeChannelMock.mockReset();
-    subscribeMock.mockClear();
+    state.removeChannelMock.mockReset();
+    state.subscribeMock.mockClear();
   });
 
   it('shows pending UI when profile.approval_status === "pending"', async () => {
-    currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'blogger' };
+    state.currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'blogger' };
     renderScreen();
     await waitFor(() =>
       expect(screen.getByText(/Pending Admin Approval/i)).toBeInTheDocument()
@@ -85,7 +85,7 @@ describe('PendingApprovalScreen — negative flows', () => {
   });
 
   it('shows rejected UI when admin rejects (approval_status === "rejected")', async () => {
-    currentProfile = { display_name: 'A', username: 'a', approval_status: 'rejected', role: 'blogger' };
+    state.currentProfile = { display_name: 'A', username: 'a', approval_status: 'rejected', role: 'blogger' };
     renderScreen();
     await waitFor(() =>
       expect(screen.getByText(/Account Rejected/i)).toBeInTheDocument()
@@ -96,7 +96,7 @@ describe('PendingApprovalScreen — negative flows', () => {
 
   it('shows pending UI for revoked approval (was approved → set back to pending)', async () => {
     // Simulate admin revoking approval: status flips back to pending
-    currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'business' };
+    state.currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'business' };
     renderScreen();
     await waitFor(() =>
       expect(screen.getByText(/Pending Admin Approval/i)).toBeInTheDocument()
@@ -104,8 +104,8 @@ describe('PendingApprovalScreen — negative flows', () => {
   });
 
   it('subscribes to realtime updates so status flips trigger re-evaluation', async () => {
-    currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'blogger' };
+    state.currentProfile = { display_name: 'A', username: 'a', approval_status: 'pending', role: 'blogger' };
     renderScreen();
-    await waitFor(() => expect(subscribeMock).toHaveBeenCalled());
+    await waitFor(() => expect(state.subscribeMock).toHaveBeenCalled());
   });
 });
