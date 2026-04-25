@@ -200,9 +200,15 @@ async function syncToAdmin(role: string, profileData: Record<string, any>) {
         city: profileData.city || null,
         email: profileData.email || null,
         description: null,
-        status: "approved",
+        status: "pending",
         verified: false,
       }, { onConflict: "id" });
+
+      await adminDb.from("approvals").insert({
+        entity_type: "business",
+        entity_id: profileData.user_id,
+        status: "pending",
+      }).catch(() => {});
 
       await adminDb.from("activity_log").insert({
         type: "business_registered",
@@ -266,7 +272,7 @@ Deno.serve(async (req) => {
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const approvalStatus = role === "blogger" ? "pending" : "approved";
+    const approvalStatus = "pending";
     const systemPassword = generateSystemPassword();
 
     // Build a safe unique username (ASCII) BEFORE creating user, so handle_new_user trigger uses it
@@ -351,7 +357,7 @@ Deno.serve(async (req) => {
 
     const message = role === "blogger"
       ? "ثبت‌نام با موفقیت انجام شد. لینک تنظیم رمز عبور به ایمیل شما ارسال شد. حساب شما در انتظار بررسی ادمین است."
-      : "ثبت‌نام کسب‌وکار با موفقیت انجام شد. لینک تنظیم رمز عبور به ایمیل شما ارسال شد.";
+      : "ثبت‌نام کسب‌وکار با موفقیت انجام شد. لینک تنظیم رمز عبور به ایمیل شما ارسال شد. حساب شما در انتظار بررسی ادمین است.";
 
     return new Response(JSON.stringify({
       success: true,
