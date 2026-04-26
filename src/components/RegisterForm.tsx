@@ -1,4 +1,4 @@
-import { useState, FormEvent, useMemo, useEffect } from "react";
+import { useState, FormEvent, useMemo, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -47,7 +47,7 @@ function zodToFieldErrors(err: ZodError): FieldErrors {
   return out;
 }
 
-const RegisterForm = ({ type }: Props) => {
+const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
   useLanguage();
   const navigate = useNavigate();
 
@@ -134,8 +134,6 @@ const RegisterForm = ({ type }: Props) => {
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("");
 
-  // On mount: if we have a stored email, look up its current status.
-  // If approved, clear gate so user can log in normally.
   useEffect(() => {
     if (!pendingEmail) return;
     let cancelled = false;
@@ -146,7 +144,7 @@ const RegisterForm = ({ type }: Props) => {
         });
         if (cancelled) return;
         if (data?.exists && data.profile) {
-          if (data.profile.approval_status === 'approved') {
+          if (data.profile.approval_status === 'approved' || data.profile.approval_status === 'rejected') {
             localStorage.removeItem(STORAGE_KEY);
             setPendingEmail(null);
             setPendingProfile(null);
@@ -164,7 +162,6 @@ const RegisterForm = ({ type }: Props) => {
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const igUsername = useMemo(() => extractInstagramUsername(instagram), [instagram]);
@@ -218,7 +215,6 @@ const RegisterForm = ({ type }: Props) => {
         try {
           payload = await ctx.json();
         } catch {
-          // ignore
         }
       }
 
@@ -239,9 +235,8 @@ const RegisterForm = ({ type }: Props) => {
 
       toast.success(payload?.message || (isBlogger ? copy.bloggerSuccess : copy.businessSuccess));
 
-      // Save email so subsequent visits show the pending screen instead of the form
       const submittedEmail = (result.data as any).email as string;
-      try { localStorage.setItem(STORAGE_KEY, submittedEmail); } catch { /* ignore */ }
+      try { localStorage.setItem(STORAGE_KEY, submittedEmail); } catch {}
       setPendingProfile(payload?.profile || null);
       setPendingEmail(submittedEmail);
       setBootChecking(false);
@@ -280,37 +275,38 @@ const RegisterForm = ({ type }: Props) => {
     );
   };
 
-  // Show loading while we resolve a stored pending email
   if (bootChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div ref={ref} className="min-h-screen flex items-center justify-center">
         <Loader2 size={32} className="animate-spin text-primary" />
       </div>
     );
   }
 
-  // If a pending registration exists for this email, show status instead of the form
   if (pendingEmail) {
     return (
-      <PendingByEmailScreen
-        email={pendingEmail}
-        initialProfile={pendingProfile}
-        onApproved={() => {
-          localStorage.removeItem(STORAGE_KEY);
-          setPendingEmail(null);
-          setPendingProfile(null);
-        }}
-        onReset={() => {
-          localStorage.removeItem(STORAGE_KEY);
-          setPendingEmail(null);
-          setPendingProfile(null);
-        }}
-      />
+      <div ref={ref}>
+        <PendingByEmailScreen
+          email={pendingEmail}
+          initialProfile={pendingProfile}
+          onApproved={() => {
+            localStorage.removeItem(STORAGE_KEY);
+            setPendingEmail(null);
+            setPendingProfile(null);
+          }}
+          onReset={() => {
+            localStorage.removeItem(STORAGE_KEY);
+            setPendingEmail(null);
+            setPendingProfile(null);
+          }}
+        />
+      </div>
     );
   }
 
   return (
     <div
+      ref={ref}
       className="min-h-screen flex items-center justify-center py-10 sm:py-16 lg:py-24 px-3 sm:px-4 relative"
       dir={isEn ? "ltr" : "rtl"}
     >
@@ -519,10 +515,8 @@ const RegisterForm = ({ type }: Props) => {
                 value={instagram}
                 onChange={(e) => {
                   let v = e.target.value.trim();
-                  // Strip URL prefixes if user pastes a link
                   v = v.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "");
                   v = v.replace(/\/+$/, "");
-                  // Always force a single leading @
                   v = "@" + v.replace(/^@+/, "");
                   setInstagram(v);
                 }}
@@ -556,6 +550,8 @@ const RegisterForm = ({ type }: Props) => {
       </motion.div>
     </div>
   );
-};
+});
+
+RegisterForm.displayName = 'RegisterForm';
 
 export default RegisterForm;

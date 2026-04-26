@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, ArrowLeft, ArrowRight, Mail } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,7 +14,7 @@ interface Props {
   onReset?: () => void;
 }
 
-const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Props) => {
+const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initialProfile, onApproved, onReset }, ref) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const lang =
@@ -24,6 +24,11 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
   const [profile, setProfile] = useState<any>(initialProfile || null);
   const [refreshing, setRefreshing] = useState(false);
   const lastStatusRef = useRef<string | null>(initialProfile?.approval_status ?? null);
+  const status = profile?.approval_status || 'pending';
+  const isRejected = status === 'rejected';
+  const isApproved = status === 'approved';
+  const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
+  const dashboardPath = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
 
   const handleStatusChange = (nextProfile: any) => {
     setProfile(nextProfile);
@@ -74,7 +79,7 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
       void fetchStatus();
     }, 15000);
     return () => window.clearInterval(id);
-  }, [email, profile?.approval_status]);
+  }, [email, status]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -91,12 +96,6 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
 
     setRefreshing(false);
   };
-
-  const status = profile?.approval_status || 'pending';
-  const isRejected = status === 'rejected';
-  const isApproved = status === 'approved';
-  const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
-  const dashboardPath = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
 
   useEffect(() => {
     if (!isApproved || !profile?.role || !user) return;
@@ -119,7 +118,7 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" dir={isEn ? 'ltr' : 'rtl'}>
+    <div ref={ref} className="min-h-screen flex items-center justify-center p-6" dir={isEn ? 'ltr' : 'rtl'}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -251,6 +250,8 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
       </motion.div>
     </div>
   );
-};
+});
+
+PendingByEmailScreen.displayName = 'PendingByEmailScreen';
 
 export default PendingByEmailScreen;
