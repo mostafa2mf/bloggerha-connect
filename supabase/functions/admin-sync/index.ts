@@ -12,6 +12,11 @@ const ADMIN_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const adminDb = createClient(ADMIN_URL, ADMIN_SERVICE_KEY);
 
+// Best-effort wrapper for non-critical admin DB writes (activity_log/approvals)
+const safe = async (p: PromiseLike<unknown>) => {
+  try { await p; } catch (_) { /* ignore */ }
+};
+
 // Local Supabase (this project)
 const LOCAL_URL = Deno.env.get("SUPABASE_URL")!;
 const LOCAL_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
