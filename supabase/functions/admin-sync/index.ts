@@ -47,7 +47,7 @@ serve(async (req) => {
           entity_type: "campaign",
           entity_id: data.id,
           status: "pending",
-        }).catch(() => {});
+        });
 
         await adminDb.from("activity_log").insert({
           type: "campaign_submitted",
@@ -56,7 +56,7 @@ serve(async (req) => {
           icon: "megaphone",
           entity_type: "campaign",
           entity_id: data.id,
-        }).catch(() => {});
+        });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -85,7 +85,7 @@ serve(async (req) => {
           entity_type: "influencer",
           entity_id: data.user_id,
           status: "pending",
-        }).catch(() => {});
+        });
 
         await adminDb.from("activity_log").insert({
           type: "influencer_registered",
@@ -94,7 +94,7 @@ serve(async (req) => {
           icon: "user",
           entity_type: "influencer",
           entity_id: data.user_id,
-        }).catch(() => {});
+        });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -121,7 +121,7 @@ serve(async (req) => {
           entity_type: "business",
           entity_id: data.user_id,
           status: "pending",
-        }).catch(() => {});
+        });
 
         await adminDb.from("activity_log").insert({
           type: "business_registered",
@@ -130,7 +130,7 @@ serve(async (req) => {
           icon: "building",
           entity_type: "business",
           entity_id: data.user_id,
-        }).catch(() => {});
+        });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,7 +154,7 @@ serve(async (req) => {
           icon: "inbox",
           entity_type: "campaign",
           entity_id: data.campaign_id,
-        }).catch(() => {});
+        });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -241,7 +241,7 @@ serve(async (req) => {
           icon: "image",
           entity_type: "campaign",
           entity_id: data.campaign_id,
-        }).catch(() => {});
+        });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
