@@ -12,6 +12,11 @@ const ADMIN_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const adminDb = createClient(ADMIN_URL, ADMIN_SERVICE_KEY);
 
+// Best-effort wrapper for non-critical admin DB writes (activity_log/approvals)
+const safe = async (p: PromiseLike<unknown>) => {
+  try { await p; } catch (_) { /* ignore */ }
+};
+
 // Local Supabase (this project)
 const LOCAL_URL = Deno.env.get("SUPABASE_URL")!;
 const LOCAL_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -43,20 +48,20 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        await adminDb.from("approvals").insert({
+        await safe(adminDb.from("approvals").insert({
           entity_type: "campaign",
           entity_id: data.id,
           status: "pending",
-        }).catch(() => {});
+        }));
 
-        await adminDb.from("activity_log").insert({
+        await safe(adminDb.from("activity_log").insert({
           type: "campaign_submitted",
           message: `New campaign "${data.title}" submitted for review`,
           message_fa: `کمپین جدید "${data.title}" برای بررسی ارسال شد`,
           icon: "megaphone",
           entity_type: "campaign",
           entity_id: data.id,
-        }).catch(() => {});
+        }));
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -81,20 +86,20 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        await adminDb.from("approvals").insert({
+        await safe(adminDb.from("approvals").insert({
           entity_type: "influencer",
           entity_id: data.user_id,
           status: "pending",
-        }).catch(() => {});
+        }));
 
-        await adminDb.from("activity_log").insert({
+        await safe(adminDb.from("activity_log").insert({
           type: "influencer_registered",
           message: `New influencer "${data.display_name || data.username}" registered`,
           message_fa: `اینفلوئنسر جدید "${data.display_name || data.username}" ثبت‌نام کرد`,
           icon: "user",
           entity_type: "influencer",
           entity_id: data.user_id,
-        }).catch(() => {});
+        }));
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -117,20 +122,20 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        await adminDb.from("approvals").insert({
+        await safe(adminDb.from("approvals").insert({
           entity_type: "business",
           entity_id: data.user_id,
           status: "pending",
-        }).catch(() => {});
+        }));
 
-        await adminDb.from("activity_log").insert({
+        await safe(adminDb.from("activity_log").insert({
           type: "business_registered",
           message: `New business "${data.display_name || data.username}" registered`,
           message_fa: `کسب‌وکار جدید "${data.display_name || data.username}" ثبت‌نام کرد`,
           icon: "building",
           entity_type: "business",
           entity_id: data.user_id,
-        }).catch(() => {});
+        }));
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -147,14 +152,14 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        await adminDb.from("activity_log").insert({
+        await safe(adminDb.from("activity_log").insert({
           type: "application_received",
           message: `New application received for campaign`,
           message_fa: `درخواست جدید برای کمپین دریافت شد`,
           icon: "inbox",
           entity_type: "campaign",
           entity_id: data.campaign_id,
-        }).catch(() => {});
+        }));
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -234,14 +239,14 @@ serve(async (req) => {
 
       // ── Sync upload review to admin ──
       case "sync_upload_review": {
-        await adminDb.from("activity_log").insert({
+        await safe(adminDb.from("activity_log").insert({
           type: "review_submitted",
           message: `Blogger submitted content review for campaign`,
           message_fa: `بلاگر محتوای بازبینی برای کمپین ارسال کرد`,
           icon: "image",
           entity_type: "campaign",
           entity_id: data.campaign_id,
-        }).catch(() => {});
+        }));
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -373,7 +378,7 @@ serve(async (req) => {
     }
   } catch (err) {
     console.error("Admin sync error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
