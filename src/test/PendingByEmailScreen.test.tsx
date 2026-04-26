@@ -56,7 +56,7 @@ describe('PendingByEmailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /check status|بررسی مجدد وضعیت/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Account Approved|حساب شما تأیید شد/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Account Approved|حساب شما تأیید شد/i })).toBeInTheDocument();
     });
 
     await waitFor(() => {
