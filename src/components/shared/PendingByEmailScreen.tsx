@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
 import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, ArrowLeft, ArrowRight, Mail } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
   email: string;
@@ -15,55 +16,79 @@ interface Props {
 
 const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Props) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const lang =
     typeof document !== 'undefined' && document.documentElement.lang?.toLowerCase().startsWith('en') ? 'en' : 'fa';
   const isEn = lang === 'en';
 
   const [profile, setProfile] = useState<any>(initialProfile || null);
   const [refreshing, setRefreshing] = useState(false);
+  const lastStatusRef = useRef<string | null>(initialProfile?.approval_status ?? null);
 
-  // Initial fetch if not provided
-  useEffect(() => {
-    if (initialProfile || !email) return;
-    fetchStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email]);
+  const handleStatusChange = (nextProfile: any) => {
+    setProfile(nextProfile);
 
-  // Auto-poll every 15s
-  useEffect(() => {
-    if (!email) return;
-    const id = setInterval(fetchStatus, 15000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email]);
+    const nextStatus = nextProfile?.approval_status ?? null;
+    const prevStatus = lastStatusRef.current;
+    lastStatusRef.current = nextStatus;
+
+    if (!nextStatus || nextStatus === prevStatus) return;
+
+    if (nextStatus === 'approved') {
+      toast.success(isEn ? 'Account approved.' : 'حساب شما تأیید شد.');
+      return;
+    }
+
+    if (nextStatus === 'rejected') {
+      toast.error(isEn ? 'Your registration was rejected.' : 'درخواست ثبت‌نام شما رد شد.');
+    }
+  };
 
   const fetchStatus = async () => {
     try {
       const { data } = await supabase.functions.invoke('check-registration', {
         body: { email },
       });
-      if (data?.exists && data.profile) {
-        setProfile(data.profile);
-        if (data.profile.approval_status === 'approved') {
-          toast.success(isEn ? 'Account approved. Opening your dashboard…' : 'حساب شما تأیید شد. ورود به داشبورد...');
-          if (onApproved) onApproved();
-        }
+
+      if (!data?.exists || !data.profile) {
+        setProfile(null);
+        return null;
       }
+
+      handleStatusChange(data.profile);
+      return data.profile;
     } catch (err) {
       console.error('Status check failed:', err);
+      return null;
     }
   };
 
+  useEffect(() => {
+    if (initialProfile || !email) return;
+    void fetchStatus();
+  }, [email, initialProfile]);
+
+  useEffect(() => {
+    if (!email || status !== 'pending') return;
+    const id = window.setInterval(() => {
+      void fetchStatus();
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [email, profile?.approval_status]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchStatus();
-    if (profile?.approval_status === 'approved') {
+    const nextProfile = await fetchStatus();
+    const nextStatus = nextProfile?.approval_status ?? profile?.approval_status ?? 'pending';
+
+    if (nextStatus === 'approved') {
       toast.success(isEn ? 'Approved!' : 'حساب شما تأیید شد! 🎉');
-    } else if (profile?.approval_status === 'rejected') {
+    } else if (nextStatus === 'rejected') {
       toast.error(isEn ? 'Rejected.' : 'متأسفانه حساب شما رد شد.');
     } else {
       toast.info(isEn ? 'Still under review...' : 'هنوز در حال بررسی...');
     }
+
     setRefreshing(false);
   };
 
@@ -71,16 +96,27 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
   const isRejected = status === 'rejected';
   const isApproved = status === 'approved';
   const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
+  const dashboardPath = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
 
-   useEffect(() => {
-    if (!isApproved || !profile?.role) return;
+  useEffect(() => {
+    if (!isApproved || !profile?.role || !user) return;
 
     const timer = window.setTimeout(() => {
-      navigate(profile.role === 'business' ? '/dashboard/business' : '/dashboard', { replace: true });
+      navigate(dashboardPath, { replace: true });
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [isApproved, navigate, profile?.role]);
+  }, [dashboardPath, isApproved, navigate, profile?.role, user]);
+
+  const handleApprovedAction = () => {
+    if (user) {
+      navigate(dashboardPath);
+      return;
+    }
+
+    onApproved?.();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" dir={isEn ? 'ltr' : 'rtl'}>
@@ -112,19 +148,22 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
           <p className="text-sm text-muted-foreground leading-relaxed">
             {isApproved
               ? (isEn
-                ? 'Your account is approved. Please log in to access your dashboard.'
-                : 'حساب شما تأیید شده است. برای ورود به داشبورد وارد شوید.')
+                ? user
+                  ? 'Your account is approved. Opening your dashboard now.'
+                  : 'Your account is approved. Log in to enter your dashboard.'
+                : user
+                  ? 'حساب شما تأیید شده است. در حال ورود به داشبورد شما هستیم.'
+                  : 'حساب شما تأیید شده است. برای ورود به داشبورد وارد حساب خود شوید.')
               : isRejected
                 ? (isEn
                   ? 'Unfortunately your registration has been rejected. Please contact support.'
                   : 'متأسفانه درخواست ثبت‌نام شما رد شد. لطفاً با پشتیبانی تماس بگیرید.')
                 : (isEn
-                  ? 'Your registration is being reviewed. After approval you can log in.'
-                  : 'درخواست ثبت‌نام شما در حال بررسی است. پس از تأیید می‌توانید وارد شوید.')}
+                  ? 'Your registration is being reviewed. After approval the status here will update automatically.'
+                  : 'درخواست ثبت‌نام شما در حال بررسی است. بعد از تأیید، وضعیت این صفحه به‌صورت خودکار به‌روزرسانی می‌شود.')}
           </p>
         </div>
 
-        {/* Email + profile summary */}
         <div className="glass rounded-2xl p-4 space-y-3 text-start">
           <div className="flex items-center gap-2">
             <Mail size={16} className="text-primary shrink-0" />
@@ -174,7 +213,7 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
           </div>
         )}
 
-        {!isApproved && (
+        {!isApproved && !isRejected && (
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -186,11 +225,10 @@ const PendingByEmailScreen = ({ email, initialProfile, onApproved, onReset }: Pr
         )}
 
         {isApproved && profile?.role && (
-          <Button
-            onClick={() => navigate(profile.role === 'business' ? '/dashboard/business' : '/dashboard')}
-            className="w-full rounded-xl"
-          >
-            {isEn ? 'Open dashboard' : 'ورود به داشبورد'}
+          <Button onClick={handleApprovedAction} className="w-full rounded-xl">
+            {user
+              ? (isEn ? 'Open dashboard' : 'ورود به داشبورد')
+              : (isEn ? 'Back to home and log in' : 'بازگشت و ورود به حساب')}
           </Button>
         )}
 
