@@ -52,7 +52,9 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/lib/adminSync', () => ({
-  checkApproval: vi.fn().mockResolvedValue({ approval: { status: 'pending' } }),
+  checkApproval: vi.fn().mockImplementation(async () => ({
+    approval: { status: state.currentProfile?.approval_status ?? 'pending' },
+  })),
 }));
 
 const renderScreen = (onApproved?: () => void) =>

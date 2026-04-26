@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import AdminEntryModal from './AdminEntryModal';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
 
-const Header = () => {
+const Header = forwardRef<HTMLDivElement>((_, ref) => {
   const { t, toggleLang, lang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
@@ -45,7 +45,7 @@ const Header = () => {
   };
 
   return (
-    <>
+    <div ref={ref}>
       <motion.header
         className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
           scrolled ? 'glass-strong shadow-sm' : 'bg-transparent'
@@ -121,7 +121,6 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile controls */}
           <div className="flex md:hidden items-center gap-2">
             <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg glass">
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -130,7 +129,6 @@ const Header = () => {
         </div>
       </motion.header>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -146,7 +144,6 @@ const Header = () => {
                 </a>
               ))}
 
-              {/* Utility buttons row */}
               <div className="flex items-center gap-2 pt-2 border-t border-border/30 mt-1">
                 <button
                   onClick={() => { toggleLang(); setMobileOpen(false); }}
@@ -189,8 +186,10 @@ const Header = () => {
       </AnimatePresence>
 
       <AdminEntryModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
-    </>
+    </div>
   );
-};
+});
+
+Header.displayName = 'Header';
 
 export default Header;
