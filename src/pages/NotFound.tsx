@@ -1,12 +1,21 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { logEventSync } from "@/lib/eventLogger";
 
 const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
+    logEventSync({
+      action: 'route.404',
+      details: {
+        path: location.pathname,
+        search: location.search,
+        referrer: typeof document !== 'undefined' ? document.referrer : null,
+      },
+    });
+  }, [location.pathname, location.search]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
