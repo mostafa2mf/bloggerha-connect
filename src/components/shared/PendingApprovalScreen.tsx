@@ -65,6 +65,20 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       });
   }, [user]);
 
+  // Auto sign-out and redirect to landing page when rejected
+  useEffect(() => {
+    if (profile?.approval_status !== 'rejected') return;
+    const timer = window.setTimeout(async () => {
+      try {
+        await signOut();
+      } catch (_) {
+        // ignore
+      }
+      navigate('/', { replace: true });
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [profile?.approval_status, signOut, navigate]);
+
   useEffect(() => {
     if (!user) return;
 
