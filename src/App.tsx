@@ -10,6 +10,7 @@ import BloggerRegister from "./pages/BloggerRegister.tsx";
 import BusinessRegister from "./pages/BusinessRegister.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import BusinessDashboard from "./pages/BusinessDashboard.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AuthGate from "./components/shared/AuthGate";
 
@@ -28,6 +29,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/register/blogger" element={<BloggerRegister />} />
                 <Route path="/register/business" element={<BusinessRegister />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/business" element={<BusinessDashboard />} />
                 <Route path="*" element={<NotFound />} />

@@ -96,7 +96,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
 
     const poll = window.setInterval(() => {
       void syncApproval();
-    }, 8000);
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);

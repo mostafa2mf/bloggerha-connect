@@ -144,13 +144,7 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
         });
         if (cancelled) return;
         if (data?.exists && data.profile) {
-          if (data.profile.approval_status === 'approved' || data.profile.approval_status === 'rejected') {
-            localStorage.removeItem(STORAGE_KEY);
-            setPendingEmail(null);
-            setPendingProfile(null);
-          } else {
-            setPendingProfile(data.profile);
-          }
+          setPendingProfile(data.profile);
         } else {
           localStorage.removeItem(STORAGE_KEY);
           setPendingEmail(null);
@@ -290,9 +284,7 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
           email={pendingEmail}
           initialProfile={pendingProfile}
           onApproved={() => {
-            localStorage.removeItem(STORAGE_KEY);
-            setPendingEmail(null);
-            setPendingProfile(null);
+            setPendingProfile((prev: any) => ({ ...(prev || {}), approval_status: 'approved' }));
           }}
           onReset={() => {
             localStorage.removeItem(STORAGE_KEY);
