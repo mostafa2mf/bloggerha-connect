@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { logEventSync } from '@/lib/eventLogger';
 import LogoSplash from './LogoSplash';
 
 /**
@@ -32,6 +33,10 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
     setShowSplash(true);
     const timer = setTimeout(() => {
       const target = userRole === 'business' ? '/dashboard/business' : '/dashboard';
+      logEventSync({
+        action: 'redirect.to_dashboard',
+        details: { from: location.pathname, target, role: userRole, source: 'AuthGate' },
+      });
       navigate(target, { replace: true });
       setTimeout(() => setShowSplash(false), 200);
     }, 1200);
