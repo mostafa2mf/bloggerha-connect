@@ -14,8 +14,9 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const [showSplash, setShowSplash] = useState(false);
 
-  const publicPaths = ['/', '/register/blogger', '/register/business'];
+  const publicPaths = ['/', '/register/blogger', '/register/business', '/reset-password'];
   const isPublic = publicPaths.includes(location.pathname);
+  const isResetPassword = location.pathname === '/reset-password';
 
   useEffect(() => {
     if (loading) return;
@@ -23,7 +24,7 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
       setShowSplash(false);
       return;
     }
-    if (!isPublic) return;
+    if (!isPublic || isResetPassword) return;
     // Authenticated user on a public page → splash + redirect to their area.
     // The dashboard layouts themselves render the PendingApprovalScreen when
     // approval_status !== 'approved', so users without approval still land
@@ -35,7 +36,7 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
       setTimeout(() => setShowSplash(false), 200);
     }, 1200);
     return () => clearTimeout(timer);
-  }, [user, userRole, loading, isPublic, location.pathname, navigate]);
+  }, [user, userRole, loading, isPublic, isResetPassword, location.pathname, navigate]);
 
   return (
     <>

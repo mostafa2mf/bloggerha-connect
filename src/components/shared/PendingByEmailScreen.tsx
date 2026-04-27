@@ -77,7 +77,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     if (!email || status !== 'pending') return;
     const id = window.setInterval(() => {
       void fetchStatus();
-    }, 15000);
+    }, 5000);
     return () => window.clearInterval(id);
   }, [email, status]);
 
