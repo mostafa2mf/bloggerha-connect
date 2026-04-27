@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { logEventSync } from '@/lib/eventLogger';
 
 interface Props {
   onApproved?: () => void;
@@ -34,12 +35,16 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     lastStatusRef.current = nextStatus;
 
     if (nextStatus === 'approved') {
-      if (previous !== 'approved') handleApproved();
+      if (previous !== 'approved') {
+        logEventSync({ action: 'approval.detected', details: { previous, source: 'PendingApprovalScreen' } });
+        handleApproved();
+      }
       return;
     }
 
     if (nextStatus === 'rejected') {
       if (previous !== 'rejected') {
+        logEventSync({ action: 'rejection.detected', details: { previous, source: 'PendingApprovalScreen' } });
         toast.error(lang === 'fa' ? 'متأسفانه حساب شما رد شد.' : 'Your account has been rejected.');
       }
       setProfile((prev: any) => ({ ...(prev || {}), ...(nextProfile || {}), approval_status: 'rejected' }));
@@ -70,14 +75,16 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     if (profile?.approval_status !== 'rejected') return;
     const timer = window.setTimeout(async () => {
       try {
+        logEventSync({ action: 'rejection.signout', details: { role: profile?.role ?? null } });
         await signOut();
       } catch (_) {
         // ignore
       }
+      logEventSync({ action: 'redirect.to_landing', details: { reason: 'rejected' } });
       navigate('/', { replace: true });
     }, 3500);
     return () => window.clearTimeout(timer);
-  }, [profile?.approval_status, signOut, navigate]);
+  }, [profile?.approval_status, profile?.role, signOut, navigate]);
 
   useEffect(() => {
     if (!user) return;

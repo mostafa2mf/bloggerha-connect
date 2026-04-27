@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { logEventSync } from '@/lib/eventLogger';
 
 interface Props {
   email: string;
