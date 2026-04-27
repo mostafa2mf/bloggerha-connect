@@ -107,6 +107,21 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     return () => window.clearTimeout(timer);
   }, [dashboardPath, isApproved, navigate, profile?.role, user]);
 
+  // When rejected, send the user back to landing/registration after a short delay
+  useEffect(() => {
+    if (!isRejected) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        if (user) await supabase.auth.signOut();
+      } catch (_) {
+        // ignore
+      }
+      onReset?.();
+      navigate('/', { replace: true });
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [isRejected, navigate, onReset, user]);
+
   const handleApprovedAction = () => {
     if (user) {
       navigate(dashboardPath);
