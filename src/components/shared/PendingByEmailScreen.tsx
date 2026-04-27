@@ -41,20 +41,27 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     if (!nextStatus || nextStatus === prevStatus) return;
 
     if (nextStatus === 'approved') {
+      logEventSync({ action: 'approval.detected', details: { previous: prevStatus, source: 'PendingByEmailScreen', email } });
       toast.success(isEn ? 'Account approved.' : 'حساب شما تأیید شد.');
       return;
     }
 
     if (nextStatus === 'rejected') {
+      logEventSync({ action: 'rejection.detected', details: { previous: prevStatus, source: 'PendingByEmailScreen', email } });
       toast.error(isEn ? 'Your registration was rejected.' : 'درخواست ثبت‌نام شما رد شد.');
     }
   };
 
   const fetchStatus = async () => {
     try {
-      const { data } = await supabase.functions.invoke('check-registration', {
+      logEventSync({ action: 'check-registration.call', details: { email }, persist: false });
+      const { data, error } = await supabase.functions.invoke('check-registration', {
         body: { email },
       });
+
+      if (error) {
+        logEventSync({ action: 'check-registration.error', details: { email, error: error.message }, persist: false });
+      }
 
       if (!data?.exists || !data.profile) {
         setProfile(null);
@@ -63,8 +70,9 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
 
       handleStatusChange(data.profile);
       return data.profile;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Status check failed:', err);
+      logEventSync({ action: 'check-registration.error', details: { email, error: err?.message ?? String(err) }, persist: false });
       return null;
     }
   };
@@ -102,6 +110,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     if (!isApproved || !profile?.role || !user) return;
 
     const timer = window.setTimeout(() => {
+      logEventSync({ action: 'redirect.to_dashboard', details: { role: profile.role, path: dashboardPath, source: 'PendingByEmailScreen' } });
       navigate(dashboardPath, { replace: true });
     }, 700);
 
@@ -113,15 +122,19 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     if (!isRejected) return;
     const timer = window.setTimeout(async () => {
       try {
-        if (user) await supabase.auth.signOut();
+        if (user) {
+          logEventSync({ action: 'rejection.signout', details: { email, source: 'PendingByEmailScreen' } });
+          await supabase.auth.signOut();
+        }
       } catch (_) {
         // ignore
       }
       onReset?.();
+      logEventSync({ action: 'redirect.to_landing', details: { reason: 'rejected', email } });
       navigate('/', { replace: true });
     }, 4000);
     return () => window.clearTimeout(timer);
-  }, [isRejected, navigate, onReset, user]);
+  }, [isRejected, navigate, onReset, user, email]);
 
   const handleApprovedAction = () => {
     if (user) {
