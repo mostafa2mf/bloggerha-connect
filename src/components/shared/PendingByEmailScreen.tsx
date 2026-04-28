@@ -313,6 +313,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
           </div>
         )}
 
+        {!isApproved && !isRejected && (
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2 size={14} className="animate-spin text-primary" />
             {isEn ? 'Status: Under review... (auto-updates)' : 'وضعیت: در حال بررسی... (به‌روزرسانی خودکار)'}
