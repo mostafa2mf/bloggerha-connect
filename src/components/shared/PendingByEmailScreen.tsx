@@ -299,7 +299,20 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
           )}
         </div>
 
-        {!isApproved && !isRejected && (
+        {isRejected && rejectReason && (
+          <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-start space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-destructive shrink-0" />
+              <span className="text-xs font-semibold text-destructive">
+                {isEn ? 'Reason from admin' : 'دلیل ادمین'}
+              </span>
+            </div>
+            <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              {rejectReason}
+            </p>
+          </div>
+        )}
+
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2 size={14} className="animate-spin text-primary" />
             {isEn ? 'Status: Under review... (auto-updates)' : 'وضعیت: در حال بررسی... (به‌روزرسانی خودکار)'}
