@@ -105,9 +105,11 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     if (!user) return;
 
     const syncApproval = async () => {
+      // Wait until we know the role to avoid querying admin DB with the wrong entity_type
+      if (!profile?.role) return;
       try {
         const { checkApproval } = await import('@/lib/adminSync');
-        const entityType = profile?.role === 'business' ? 'business' : 'influencer';
+        const entityType = profile.role === 'business' ? 'business' : 'influencer';
         const result: any = await checkApproval(entityType, user.id, user.id);
         const status = result?.approval?.status ?? null;
         applyStatus(status);
