@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, ArrowLeft, ArrowRight, Mail } from 'lucide-react';
+import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, ArrowLeft, ArrowRight, Mail, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +30,19 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
   const isApproved = status === 'approved';
   const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
   const dashboardPath = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
+  const rejectReason: string | null = profile?.reject_reason ?? null;
+
+  // Log the reject reason once when it appears, for tracing/audit
+  const reasonLoggedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isRejected || !rejectReason) return;
+    if (reasonLoggedRef.current === rejectReason) return;
+    reasonLoggedRef.current = rejectReason;
+    logEventSync({
+      action: 'rejection.reason_shown',
+      details: { email, role: profile?.role ?? null, reason: rejectReason, source: 'PendingByEmailScreen' },
+    });
+  }, [isRejected, rejectReason, email, profile?.role]);
 
   const handleStatusChange = (nextProfile: any) => {
     setProfile(nextProfile);
