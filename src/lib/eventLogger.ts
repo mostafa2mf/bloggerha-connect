@@ -5,6 +5,7 @@ export type AuthEventAction =
   | 'approval.redirect'
   | 'rejection.detected'
   | 'rejection.signout'
+  | 'rejection.reason_shown'
   | 'redirect.to_landing'
   | 'redirect.to_dashboard'
   | 'route.404'
@@ -14,7 +15,9 @@ export type AuthEventAction =
   | 'register.success'
   | 'register.failure'
   | 'check-registration.call'
-  | 'check-registration.error';
+  | 'check-registration.error'
+  | 'waiting.timeout_fallback'
+  | 'waiting.poll_failure_fallback';
 
 interface LogEventOptions {
   action: AuthEventAction;
