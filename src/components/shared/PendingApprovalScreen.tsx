@@ -23,8 +23,23 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
 
   const handleApproved = () => {
     toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Your account has been approved! 🎉');
-    if (onApproved) onApproved();
-    else window.location.reload();
+    // Clear any leftover pending-registration markers so refreshes don't bounce
+    // the user back into the waiting screen.
+    try {
+      localStorage.removeItem('pending_registration_blogger');
+      localStorage.removeItem('pending_registration_business');
+    } catch (_) {}
+
+    if (onApproved) {
+      onApproved();
+      return;
+    }
+
+    // Route directly to the right dashboard instead of full reload, which can
+    // re-trigger PendingByEmailScreen via stale localStorage / URL state.
+    const target = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
+    logEventSync({ action: 'redirect.to_dashboard', details: { role: profile?.role ?? null, path: target, source: 'PendingApprovalScreen' } });
+    navigate(target, { replace: true });
   };
 
   const applyStatus = (nextStatus: string | null, nextProfile?: any) => {
@@ -90,9 +105,11 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     if (!user) return;
 
     const syncApproval = async () => {
+      // Wait until we know the role to avoid querying admin DB with the wrong entity_type
+      if (!profile?.role) return;
       try {
         const { checkApproval } = await import('@/lib/adminSync');
-        const entityType = profile?.role === 'business' ? 'business' : 'influencer';
+        const entityType = profile.role === 'business' ? 'business' : 'influencer';
         const result: any = await checkApproval(entityType, user.id, user.id);
         const status = result?.approval?.status ?? null;
         applyStatus(status);

@@ -144,7 +144,16 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
         });
         if (cancelled) return;
         if (data?.exists && data.profile) {
-          setPendingProfile(data.profile);
+          // If already approved, drop the pending flag so we don't trap the user
+          // on the waiting screen forever. Logged-in users will be redirected
+          // by AuthGate; logged-out users return to landing to log in.
+          if (data.profile.approval_status === 'approved') {
+            try { localStorage.removeItem(STORAGE_KEY); } catch {}
+            setPendingEmail(null);
+            setPendingProfile(null);
+          } else {
+            setPendingProfile(data.profile);
+          }
         } else {
           localStorage.removeItem(STORAGE_KEY);
           setPendingEmail(null);
