@@ -82,13 +82,50 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     void fetchStatus();
   }, [email, initialProfile]);
 
+  // Polling + safety: count consecutive failures and trigger a fallback after too many
+  const failuresRef = useRef(0);
   useEffect(() => {
     if (!email || status !== 'pending') return;
-    const id = window.setInterval(() => {
-      void fetchStatus();
+    const id = window.setInterval(async () => {
+      const result = await fetchStatus();
+      if (result === null) {
+        failuresRef.current += 1;
+        if (failuresRef.current >= 6) {
+          // ~30s of consecutive failures → bail out so user isn't stranded
+          logEventSync({
+            action: 'waiting.poll_failure_fallback',
+            details: { email, failures: failuresRef.current, source: 'PendingByEmailScreen' },
+          });
+          toast.error(isEn ? 'Connection issue. Returning to home.' : 'ارتباط برقرار نشد. به صفحه اصلی برمی‌گردیم.');
+          onReset?.();
+          navigate('/', { replace: true });
+        }
+      } else {
+        failuresRef.current = 0;
+      }
     }, 5000);
     return () => window.clearInterval(id);
-  }, [email, status]);
+  }, [email, status, isEn, navigate, onReset]);
+
+  // Hard timeout: if user is still pending after 10 minutes, force a recheck and redirect
+  useEffect(() => {
+    if (!email || status !== 'pending') return;
+    const id = window.setTimeout(async () => {
+      const refreshed = await fetchStatus();
+      const finalStatus = refreshed?.approval_status ?? 'pending';
+      logEventSync({
+        action: 'waiting.timeout_fallback',
+        details: { email, finalStatus, source: 'PendingByEmailScreen' },
+      });
+      if (finalStatus === 'pending') {
+        toast.info(isEn ? 'Still pending. Returning to home — we will notify you.' : 'هنوز در انتظار است. به صفحه اصلی برمی‌گردیم.');
+        onReset?.();
+        navigate('/', { replace: true });
+      }
+      // approved/rejected paths are already handled by their dedicated effects
+    }, 10 * 60 * 1000);
+    return () => window.clearTimeout(id);
+  }, [email, status, isEn, navigate, onReset]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
