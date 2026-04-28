@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, ArrowLeft, ArrowRight, Mail } from 'lucide-react';
+import { Clock, Shield, Loader2, CheckCircle, Instagram, Users, RefreshCw, ArrowLeft, ArrowRight, Mail, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +30,19 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
   const isApproved = status === 'approved';
   const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
   const dashboardPath = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
+  const rejectReason: string | null = profile?.reject_reason ?? null;
+
+  // Log the reject reason once when it appears, for tracing/audit
+  const reasonLoggedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isRejected || !rejectReason) return;
+    if (reasonLoggedRef.current === rejectReason) return;
+    reasonLoggedRef.current = rejectReason;
+    logEventSync({
+      action: 'rejection.reason_shown',
+      details: { email, role: profile?.role ?? null, reason: rejectReason, source: 'PendingByEmailScreen' },
+    });
+  }, [isRejected, rejectReason, email, profile?.role]);
 
   const handleStatusChange = (nextProfile: any) => {
     setProfile(nextProfile);
@@ -82,13 +95,50 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     void fetchStatus();
   }, [email, initialProfile]);
 
+  // Polling + safety: count consecutive failures and trigger a fallback after too many
+  const failuresRef = useRef(0);
   useEffect(() => {
     if (!email || status !== 'pending') return;
-    const id = window.setInterval(() => {
-      void fetchStatus();
+    const id = window.setInterval(async () => {
+      const result = await fetchStatus();
+      if (result === null) {
+        failuresRef.current += 1;
+        if (failuresRef.current >= 6) {
+          // ~30s of consecutive failures → bail out so user isn't stranded
+          logEventSync({
+            action: 'waiting.poll_failure_fallback',
+            details: { email, failures: failuresRef.current, source: 'PendingByEmailScreen' },
+          });
+          toast.error(isEn ? 'Connection issue. Returning to home.' : 'ارتباط برقرار نشد. به صفحه اصلی برمی‌گردیم.');
+          onReset?.();
+          navigate('/', { replace: true });
+        }
+      } else {
+        failuresRef.current = 0;
+      }
     }, 5000);
     return () => window.clearInterval(id);
-  }, [email, status]);
+  }, [email, status, isEn, navigate, onReset]);
+
+  // Hard timeout: if user is still pending after 10 minutes, force a recheck and redirect
+  useEffect(() => {
+    if (!email || status !== 'pending') return;
+    const id = window.setTimeout(async () => {
+      const refreshed = await fetchStatus();
+      const finalStatus = refreshed?.approval_status ?? 'pending';
+      logEventSync({
+        action: 'waiting.timeout_fallback',
+        details: { email, finalStatus, source: 'PendingByEmailScreen' },
+      });
+      if (finalStatus === 'pending') {
+        toast.info(isEn ? 'Still pending. Returning to home — we will notify you.' : 'هنوز در انتظار است. به صفحه اصلی برمی‌گردیم.');
+        onReset?.();
+        navigate('/', { replace: true });
+      }
+      // approved/rejected paths are already handled by their dedicated effects
+    }, 10 * 60 * 1000);
+    return () => window.clearTimeout(id);
+  }, [email, status, isEn, navigate, onReset]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -248,6 +298,20 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
             </div>
           )}
         </div>
+
+        {isRejected && rejectReason && (
+          <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-start space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-destructive shrink-0" />
+              <span className="text-xs font-semibold text-destructive">
+                {isEn ? 'Reason from admin' : 'دلیل ادمین'}
+              </span>
+            </div>
+            <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              {rejectReason}
+            </p>
+          </div>
+        )}
 
         {!isApproved && !isRejected && (
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
