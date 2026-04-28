@@ -196,6 +196,8 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       const entityType = profile?.role === 'business' ? 'business' : 'influencer';
       const result: any = await checkApproval(entityType, user.id, user.id);
       const status = result?.approval?.status ?? null;
+      const reason = result?.approval?.reject_reason ?? null;
+      if (reason) setRejectReason(reason);
 
       applyStatus(status);
 
@@ -292,7 +294,20 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
           </div>
         )}
 
-        <div className="glass rounded-2xl p-4 flex items-center gap-3">
+        {isRejected && rejectReason && (
+          <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-start space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-destructive shrink-0" />
+              <span className="text-xs font-semibold text-destructive">
+                {lang === 'fa' ? 'دلیل ادمین' : 'Reason from admin'}
+              </span>
+            </div>
+            <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              {rejectReason}
+            </p>
+          </div>
+        )}
+
           <Shield size={20} className="text-primary shrink-0" />
           <p className="text-xs text-muted-foreground text-start">
             {lang === 'fa'
