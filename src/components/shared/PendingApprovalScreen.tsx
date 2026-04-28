@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Clock, Shield, LogOut, Loader2, CheckCircle, Instagram, Users, RefreshCw } from 'lucide-react';
+import { Clock, Shield, LogOut, Loader2, CheckCircle, Instagram, Users, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
@@ -19,7 +19,10 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
   const [loggingOut, setLoggingOut] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [rejectReason, setRejectReason] = useState<string | null>(null);
   const lastStatusRef = useRef<string | null>(null);
+  const failuresRef = useRef(0);
+  const reasonLoggedRef = useRef<string | null>(null);
 
   const handleApproved = () => {
     toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Your account has been approved! 🎉');
@@ -112,9 +115,22 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
         const entityType = profile.role === 'business' ? 'business' : 'influencer';
         const result: any = await checkApproval(entityType, user.id, user.id);
         const status = result?.approval?.status ?? null;
+        const reason = result?.approval?.reject_reason ?? null;
+        if (reason) setRejectReason(reason);
         applyStatus(status);
+        failuresRef.current = 0;
       } catch (_) {
-        // ignore transient sync errors
+        failuresRef.current += 1;
+        if (failuresRef.current >= 6) {
+          // ~30s of consecutive sync failures while waiting → bail out gracefully
+          logEventSync({
+            action: 'waiting.poll_failure_fallback',
+            details: { failures: failuresRef.current, role: profile?.role ?? null, source: 'PendingApprovalScreen' },
+          });
+          toast.error(lang === 'fa' ? 'ارتباط برقرار نشد. به صفحه اصلی برمی‌گردیم.' : 'Connection issue. Returning to home.');
+          try { await signOut(); } catch (_) {}
+          navigate('/', { replace: true });
+        }
       }
     };
 
@@ -136,11 +152,40 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       void syncApproval();
     }, 5000);
 
+    // Hard timeout: if still pending after 10 minutes, force a final recheck and exit
+    const hardTimeout = window.setTimeout(async () => {
+      if (lastStatusRef.current === 'pending' || lastStatusRef.current === null) {
+        logEventSync({
+          action: 'waiting.timeout_fallback',
+          details: { role: profile?.role ?? null, lastStatus: lastStatusRef.current, source: 'PendingApprovalScreen' },
+        });
+        toast.info(
+          lang === 'fa'
+            ? 'هنوز در انتظار است. به صفحه اصلی برمی‌گردیم — به محض تایید، اطلاع‌رسانی می‌شود.'
+            : 'Still pending. Returning to home — we will notify you on approval.'
+        );
+        try { await signOut(); } catch (_) {}
+        navigate('/', { replace: true });
+      }
+    }, 10 * 60 * 1000);
+
     return () => {
       supabase.removeChannel(channel);
       window.clearInterval(poll);
+      window.clearTimeout(hardTimeout);
     };
-  }, [user, lang, onApproved, profile?.role]);
+  }, [user, lang, onApproved, profile?.role, signOut, navigate]);
+
+  // Log the reject reason once for audit/tracing when it arrives
+  useEffect(() => {
+    if (profile?.approval_status !== 'rejected' || !rejectReason) return;
+    if (reasonLoggedRef.current === rejectReason) return;
+    reasonLoggedRef.current = rejectReason;
+    logEventSync({
+      action: 'rejection.reason_shown',
+      details: { role: profile?.role ?? null, reason: rejectReason, source: 'PendingApprovalScreen' },
+    });
+  }, [profile?.approval_status, profile?.role, rejectReason]);
 
   const handleRefresh = async () => {
     if (!user) return;
