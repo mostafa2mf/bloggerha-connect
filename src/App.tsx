@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import BusinessDashboard from "./pages/BusinessDashboard.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import AdminAuditLogs from "./pages/AdminAuditLogs.tsx";
 import AuthGate from "./components/shared/AuthGate";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/business" element={<BusinessDashboard />} />
+                <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </AuthGate>
