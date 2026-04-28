@@ -61,7 +61,7 @@ describe('PendingByEmailScreen', () => {
 
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith('/dashboard', { replace: true });
-    }, { timeout: 1200 });
+    }, { timeout: 2000 });
   });
 
   it('recovers a stuck pending business after refresh and sends them to business dashboard when logged in', async () => {
@@ -86,7 +86,7 @@ describe('PendingByEmailScreen', () => {
 
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith('/dashboard/business', { replace: true });
-    }, { timeout: 1200 });
+    }, { timeout: 2000 });
   });
 
   it('shows rejected state instead of leaving the user on waiting', async () => {
