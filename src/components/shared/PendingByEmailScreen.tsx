@@ -106,16 +106,31 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     setRefreshing(false);
   };
 
+  // When approved, clear the pending-registration flag and route the user.
+  // - If logged in: go straight to their role-specific dashboard.
+  // - If logged out: send them to landing so they can complete reset-password / login.
   useEffect(() => {
-    if (!isApproved || !profile?.role || !user) return;
+    if (!isApproved || !profile?.role) return;
+
+    // Clear stored pending email for both roles to avoid getting stuck on this screen
+    try {
+      localStorage.removeItem(`pending_registration_blogger`);
+      localStorage.removeItem(`pending_registration_business`);
+    } catch (_) {}
 
     const timer = window.setTimeout(() => {
-      logEventSync({ action: 'redirect.to_dashboard', details: { role: profile.role, path: dashboardPath, source: 'PendingByEmailScreen' } });
-      navigate(dashboardPath, { replace: true });
-    }, 700);
+      if (user) {
+        logEventSync({ action: 'redirect.to_dashboard', details: { role: profile.role, path: dashboardPath, source: 'PendingByEmailScreen' } });
+        navigate(dashboardPath, { replace: true });
+      } else {
+        logEventSync({ action: 'redirect.to_landing', details: { reason: 'approved_but_logged_out', role: profile.role } });
+        onReset?.();
+        navigate('/', { replace: true });
+      }
+    }, 1200);
 
     return () => window.clearTimeout(timer);
-  }, [dashboardPath, isApproved, navigate, profile?.role, user]);
+  }, [dashboardPath, isApproved, navigate, profile?.role, user, onReset]);
 
   // When rejected, send the user back to landing/registration after a short delay
   useEffect(() => {
