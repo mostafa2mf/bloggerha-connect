@@ -308,6 +308,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
           </div>
         )}
 
+        <div className="glass rounded-2xl p-4 flex items-center gap-3">
           <Shield size={20} className="text-primary shrink-0" />
           <p className="text-xs text-muted-foreground text-start">
             {lang === 'fa'
