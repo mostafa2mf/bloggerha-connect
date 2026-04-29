@@ -40,7 +40,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
 
     // Route directly to the right dashboard instead of full reload, which can
     // re-trigger PendingByEmailScreen via stale localStorage / URL state.
-    const target = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
+    const target = profile?.role === 'business' ? '/business-dashboard' : '/blogger-dashboard';
     logEventSync({ action: 'redirect.to_dashboard', details: { role: profile?.role ?? null, path: target, source: 'PendingApprovalScreen' } });
     navigate(target, { replace: true });
   };
@@ -88,21 +88,15 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       });
   }, [user]);
 
-  // Auto sign-out and redirect to landing page when rejected
+  // Auto-redirect to dedicated rejected page when admin rejects
   useEffect(() => {
     if (profile?.approval_status !== 'rejected') return;
-    const timer = window.setTimeout(async () => {
-      try {
-        logEventSync({ action: 'rejection.signout', details: { role: profile?.role ?? null } });
-        await signOut();
-      } catch (_) {
-        // ignore
-      }
-      logEventSync({ action: 'redirect.to_landing', details: { reason: 'rejected' } });
-      navigate('/', { replace: true });
-    }, 3500);
+    const timer = window.setTimeout(() => {
+      logEventSync({ action: 'redirect.to_rejected', details: { role: profile?.role ?? null, source: 'PendingApprovalScreen' } });
+      navigate('/application-rejected', { replace: true });
+    }, 1500);
     return () => window.clearTimeout(timer);
-  }, [profile?.approval_status, profile?.role, signOut, navigate]);
+  }, [profile?.approval_status, profile?.role, navigate]);
 
   useEffect(() => {
     if (!user) return;

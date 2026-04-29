@@ -32,7 +32,8 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
     // on the waiting screen instead of the registration form.
     setShowSplash(true);
     const timer = setTimeout(() => {
-      const target = userRole === 'business' ? '/dashboard/business' : '/dashboard';
+      // Always defer routing to /app guard, which is the single source of truth.
+      const target = '/app';
       logEventSync({
         action: 'redirect.to_dashboard',
         details: { from: location.pathname, target, role: userRole, source: 'AuthGate' },
