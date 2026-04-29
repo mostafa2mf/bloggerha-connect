@@ -13,6 +13,10 @@ import BusinessDashboard from "./pages/BusinessDashboard.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AdminAuditLogs from "./pages/AdminAuditLogs.tsx";
+import AdminDashboard from "./pages/AdminDashboard.tsx";
+import PendingApproval from "./pages/PendingApproval.tsx";
+import ApplicationRejected from "./pages/ApplicationRejected.tsx";
+import AppRedirectGuard from "./components/AppRedirectGuard";
 import AuthGate from "./components/shared/AuthGate";
 
 const queryClient = new QueryClient();
@@ -31,9 +35,24 @@ const App = () => (
                 <Route path="/register/blogger" element={<BloggerRegister />} />
                 <Route path="/register/business" element={<BusinessRegister />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+
+                {/* Single source of truth for post-login routing */}
+                <Route path="/app" element={<AppRedirectGuard />} />
+
+                {/* Status screens */}
+                <Route path="/pending-approval" element={<PendingApproval />} />
+                <Route path="/application-rejected" element={<ApplicationRejected />} />
+
+                {/* Role dashboards */}
+                <Route path="/blogger-dashboard" element={<Dashboard />} />
+                <Route path="/business-dashboard" element={<BusinessDashboard />} />
+                <Route path="/admin-dashboard" element={<AdminDashboard />} />
+
+                {/* Legacy aliases — kept so existing links don't 404 */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/business" element={<BusinessDashboard />} />
                 <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
+
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </AuthGate>
