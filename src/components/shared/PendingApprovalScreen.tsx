@@ -40,7 +40,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
 
     // Route directly to the right dashboard instead of full reload, which can
     // re-trigger PendingByEmailScreen via stale localStorage / URL state.
-    const target = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
+    const target = profile?.role === 'business' ? '/business-dashboard' : '/blogger-dashboard';
     logEventSync({ action: 'redirect.to_dashboard', details: { role: profile?.role ?? null, path: target, source: 'PendingApprovalScreen' } });
     navigate(target, { replace: true });
   };
