@@ -65,8 +65,7 @@ const ResetPassword = () => {
     }
 
     toast.success(copy.success);
-    const role = authData.user?.user_metadata?.role;
-    navigate(role === 'business' ? '/dashboard/business' : '/dashboard', { replace: true });
+    navigate('/app', { replace: true });
   };
 
   return (

@@ -60,7 +60,7 @@ describe('PendingByEmailScreen', () => {
     });
 
     await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith('/dashboard', { replace: true });
+      expect(navigateMock).toHaveBeenCalledWith('/app', { replace: true });
     }, { timeout: 2000 });
   });
 
@@ -85,7 +85,7 @@ describe('PendingByEmailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /check status|بررسی مجدد وضعیت/i }));
 
     await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith('/dashboard/business', { replace: true });
+      expect(navigateMock).toHaveBeenCalledWith('/app', { replace: true });
     }, { timeout: 2000 });
   });
 

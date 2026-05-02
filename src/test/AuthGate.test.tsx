@@ -16,8 +16,7 @@ vi.mock('@/components/shared/LogoSplash', () => ({
 const Landing = () => <div data-testid="landing">LANDING</div>;
 const RegBlogger = () => <div data-testid="reg-blogger">REG_BLOGGER</div>;
 const RegBusiness = () => <div data-testid="reg-business">REG_BUSINESS</div>;
-const Dashboard = () => <div data-testid="dashboard">DASHBOARD</div>;
-const BizDashboard = () => <div data-testid="biz-dashboard">BIZ_DASHBOARD</div>;
+const AppRoute = () => <div data-testid="app-route">APP_ROUTE</div>;
 
 const renderAt = (path: string) =>
   render(
@@ -27,8 +26,7 @@ const renderAt = (path: string) =>
           <Route path="/" element={<Landing />} />
           <Route path="/register/blogger" element={<RegBlogger />} />
           <Route path="/register/business" element={<RegBusiness />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/business" element={<BizDashboard />} />
+          <Route path="/app" element={<AppRoute />} />
         </Routes>
       </AuthGate>
     </MemoryRouter>
@@ -39,7 +37,7 @@ describe('AuthGate — logged-in users on public pages', () => {
     mockAuth.mockReset();
   });
 
-  it('redirects an unapproved blogger from "/" to /dashboard (waiting screen lives there)', async () => {
+  it('redirects an authenticated user from "/" to /app', async () => {
     mockAuth.mockReturnValue({
       user: { id: 'u1' },
       userRole: 'blogger',
@@ -48,7 +46,7 @@ describe('AuthGate — logged-in users on public pages', () => {
     renderAt('/');
     expect(screen.getByTestId('logo-splash')).toBeInTheDocument();
     await waitFor(
-      () => expect(screen.getByTestId('dashboard')).toBeInTheDocument(),
+      () => expect(screen.getByTestId('app-route')).toBeInTheDocument(),
       { timeout: 2500 }
     );
     expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
@@ -62,13 +60,13 @@ describe('AuthGate — logged-in users on public pages', () => {
     });
     renderAt('/register/blogger');
     await waitFor(
-      () => expect(screen.getByTestId('dashboard')).toBeInTheDocument(),
+      () => expect(screen.getByTestId('app-route')).toBeInTheDocument(),
       { timeout: 2500 }
     );
     expect(screen.queryByTestId('reg-blogger')).not.toBeInTheDocument();
   });
 
-  it('redirects unapproved business from /register/business to /dashboard/business', async () => {
+  it('redirects authenticated business from /register/business to /app', async () => {
     mockAuth.mockReturnValue({
       user: { id: 'u2' },
       userRole: 'business',
@@ -76,13 +74,13 @@ describe('AuthGate — logged-in users on public pages', () => {
     });
     renderAt('/register/business');
     await waitFor(
-      () => expect(screen.getByTestId('biz-dashboard')).toBeInTheDocument(),
+      () => expect(screen.getByTestId('app-route')).toBeInTheDocument(),
       { timeout: 2500 }
     );
     expect(screen.queryByTestId('reg-business')).not.toBeInTheDocument();
   });
 
-  it('redirects user with NO role yet (just signed up) to /dashboard, not the form', async () => {
+  it('redirects user with NO role yet (just signed up) to /app, not the form', async () => {
     mockAuth.mockReturnValue({
       user: { id: 'u3' },
       userRole: null,
@@ -90,7 +88,7 @@ describe('AuthGate — logged-in users on public pages', () => {
     });
     renderAt('/register/blogger');
     await waitFor(
-      () => expect(screen.getByTestId('dashboard')).toBeInTheDocument(),
+      () => expect(screen.getByTestId('app-route')).toBeInTheDocument(),
       { timeout: 2500 }
     );
     expect(screen.queryByTestId('reg-blogger')).not.toBeInTheDocument();

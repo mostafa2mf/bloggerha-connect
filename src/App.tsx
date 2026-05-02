@@ -45,8 +45,8 @@ const App = () => (
                 <Route path="/application-rejected" element={<AppRouteGate allowStatuses={["rejected"]}><ApplicationRejected /></AppRouteGate>} />
 
                 {/* Role dashboards */}
-                <Route path="/blogger-dashboard" element={<AppRouteGate allowRoles={["blogger"]} allowStatuses={["approved"]}><Dashboard /></AppRouteGate>} />
-                <Route path="/business-dashboard" element={<AppRouteGate allowRoles={["business"]} allowStatuses={["approved"]}><BusinessDashboard /></AppRouteGate>} />
+                <Route path="/blogger-dashboard" element={<AppRouteGate allowRoles={["blogger"]} allowStatuses={["approved"]} allowAdminPreview><Dashboard /></AppRouteGate>} />
+                <Route path="/business-dashboard" element={<AppRouteGate allowRoles={["business"]} allowStatuses={["approved"]} allowAdminPreview><BusinessDashboard /></AppRouteGate>} />
                 <Route path="/admin-dashboard" element={<AppRouteGate allowRoles={["admin"]}><AdminDashboard /></AppRouteGate>} />
 
                 {/* Legacy aliases — kept so existing links don't 404 */}
