@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Send, Instagram, Twitter, Linkedin } from 'lucide-react';
+import { Send, Instagram, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const container = {
@@ -58,10 +58,23 @@ const Footer = () => {
               <li>{t('footer.phone')}</li>
               <li>{t('footer.address')}</li>
             </ul>
-            <div className="flex gap-3 mt-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Instagram size={18} /></a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Twitter size={18} /></a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Linkedin size={18} /></a>
+            <div className="flex gap-4 mt-4">
+              <a
+                href="https://www.instagram.com/bloggerha.hub?igsh=cmR3aDN0czZlZnl4&utm_source=qr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-transform hover:scale-110"
+              >
+                <Instagram size={22} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
+              </a>
+              <a
+                href="https://wa.me/989128206254"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-transform hover:scale-110"
+              >
+                <MessageCircle size={22} className="text-green-400 drop-shadow-[0_0_6px_rgba(74,222,128,0.5)]" />
+              </a>
             </div>
           </motion.div>
 
