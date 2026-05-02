@@ -56,7 +56,7 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
 
   const redirectByRole = async (userRole?: string) => {
     if (userRole) {
-      navigate(userRole === 'business' ? '/dashboard/business' : '/dashboard');
+      navigate('/app', { replace: true });
       return;
     }
     const { data: { user } } = await supabase.auth.getUser();
@@ -66,11 +66,7 @@ const UserLoginModal = ({ isOpen, onClose }: Props) => {
         .select('role')
         .eq('user_id', user.id)
         .single();
-      if (profile?.role === 'business') {
-        navigate('/dashboard/business');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/app', { replace: true });
     }
   };
 

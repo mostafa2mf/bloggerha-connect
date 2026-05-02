@@ -29,7 +29,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
   const isRejected = status === 'rejected';
   const isApproved = status === 'approved';
   const displayName = profile?.brand_name || profile?.display_name || profile?.full_name || profile?.username;
-  const dashboardPath = profile?.role === 'business' ? '/dashboard/business' : '/dashboard';
+  const dashboardPath = '/app';
   const rejectReason: string | null = profile?.reject_reason ?? null;
 
   // Log the reject reason once when it appears, for tracing/audit
@@ -110,8 +110,12 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
             details: { email, failures: failuresRef.current, source: 'PendingByEmailScreen' },
           });
           toast.error(isEn ? 'Connection issue. Returning to home.' : 'ارتباط برقرار نشد. به صفحه اصلی برمی‌گردیم.');
-          onReset?.();
-          navigate('/', { replace: true });
+          if (user) {
+            navigate('/app', { replace: true });
+          } else {
+            onReset?.();
+            navigate('/', { replace: true });
+          }
         }
       } else {
         failuresRef.current = 0;
@@ -132,8 +136,12 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
       });
       if (finalStatus === 'pending') {
         toast.info(isEn ? 'Still pending. Returning to home — we will notify you.' : 'هنوز در انتظار است. به صفحه اصلی برمی‌گردیم.');
-        onReset?.();
-        navigate('/', { replace: true });
+        if (user) {
+          navigate('/app', { replace: true });
+        } else {
+          onReset?.();
+          navigate('/', { replace: true });
+        }
       }
       // approved/rejected paths are already handled by their dedicated effects
     }, 10 * 60 * 1000);
