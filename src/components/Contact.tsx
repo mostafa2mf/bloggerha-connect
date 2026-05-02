@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Contact = () => {
   const { t } = useLanguage();
@@ -11,10 +12,27 @@ const Contact = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-    toast.success(t('contact.success'));
-    (e.target as HTMLFormElement).reset();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const name = (formData.get('name') as string)?.trim();
+    const email = (formData.get('email') as string)?.trim();
+    const message = (formData.get('message') as string)?.trim();
+
+    if (!name || !email || !message) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('contact_submissions').insert({ name, email, message });
+      if (error) throw error;
+      toast.success(t('contact.success'));
+      form.reset();
+    } catch {
+      toast.error(t('contact.error') || 'خطا در ارسال پیام');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,6 +66,7 @@ const Contact = () => {
             <label className="text-sm font-medium text-muted-foreground">{t('contact.name')}</label>
             <input
               required
+              name="name"
               type="text"
               className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               placeholder={t('contact.name')}
@@ -63,6 +82,7 @@ const Contact = () => {
             <label className="text-sm font-medium text-muted-foreground">{t('contact.email')}</label>
             <input
               required
+              name="email"
               type="email"
               className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               placeholder={t('contact.email')}
@@ -78,6 +98,7 @@ const Contact = () => {
             <label className="text-sm font-medium text-muted-foreground">{t('contact.message')}</label>
             <textarea
               required
+              name="message"
               rows={4}
               className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
               placeholder={t('contact.message')}
