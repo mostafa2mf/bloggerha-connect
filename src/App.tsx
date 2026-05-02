@@ -14,6 +14,7 @@ import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AdminAuditLogs from "./pages/AdminAuditLogs.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
+import DebugRedirectHealth from "./pages/DebugRedirectHealth.tsx";
 import PendingApproval from "./pages/PendingApproval.tsx";
 import ApplicationRejected from "./pages/ApplicationRejected.tsx";
 import AppRedirectGuard from "./components/AppRedirectGuard";
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Navigate to="/app" replace />} />
                 <Route path="/dashboard/business" element={<Navigate to="/app" replace />} />
                 <Route path="/admin/audit-logs" element={<AppRouteGate allowRoles={["admin"]}><AdminAuditLogs /></AppRouteGate>} />
+                <Route path="/debug/redirect-health" element={<DebugRedirectHealth />} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
