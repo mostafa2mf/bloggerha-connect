@@ -28,21 +28,23 @@ const AppRouteGate = ({ children, allowRoles, allowStatuses }: AppRouteGateProps
     let cancelled = false;
     setFetchingProfile(true);
 
-    void supabase
-      .from('profiles')
-      .select('role, approval_status')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role, approval_status')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
         if (cancelled) return;
         setProfile(data ?? null);
-        setFetchingProfile(false);
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
         setProfile(null);
-        setFetchingProfile(false);
-      });
+      } finally {
+        if (!cancelled) setFetchingProfile(false);
+      }
+    })();
 
     return () => {
       cancelled = true;
