@@ -109,7 +109,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
             action: 'waiting.poll_failure_fallback',
             details: { email, failures: failuresRef.current, source: 'PendingByEmailScreen' },
           });
-          toast.error(isEn ? 'Connection issue. Returning to home.' : 'ارتباط برقرار نشد. به صفحه اصلی برمی‌گردیم.');
+          toast.error(isEn ? 'Connection issue. Re-checking account status.' : 'ارتباط برقرار نشد. وضعیت حساب دوباره بررسی می‌شود.');
           if (user) {
             navigate('/app', { replace: true });
           } else {
@@ -135,7 +135,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
         details: { email, finalStatus, source: 'PendingByEmailScreen' },
       });
       if (finalStatus === 'pending') {
-        toast.info(isEn ? 'Still pending. Returning to home — we will notify you.' : 'هنوز در انتظار است. به صفحه اصلی برمی‌گردیم.');
+        toast.info(isEn ? 'Still pending. Re-loading your account status.' : 'هنوز در انتظار است. وضعیت حساب دوباره بارگذاری می‌شود.');
         if (user) {
           navigate('/app', { replace: true });
         } else {
@@ -166,7 +166,7 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
 
   // When approved, clear the pending-registration flag and route the user.
   // - If logged in: go straight to their role-specific dashboard.
-  // - If logged out: send them to landing so they can complete reset-password / login.
+       // - If logged out: send them to landing so they can log in manually.
   useEffect(() => {
     if (!isApproved || !profile?.role) return;
 
@@ -203,8 +203,13 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
         // ignore
       }
       onReset?.();
-      logEventSync({ action: 'redirect.to_landing', details: { reason: 'rejected', email } });
-      navigate('/', { replace: true });
+      if (user) {
+        logEventSync({ action: 'redirect.to_rejected', details: { reason: 'rejected', email, source: 'PendingByEmailScreen' } });
+        navigate('/application-rejected', { replace: true });
+      } else {
+        logEventSync({ action: 'redirect.to_landing', details: { reason: 'rejected', email } });
+        navigate('/', { replace: true });
+      }
     }, 4000);
     return () => window.clearTimeout(timer);
   }, [isRejected, navigate, onReset, user, email]);
