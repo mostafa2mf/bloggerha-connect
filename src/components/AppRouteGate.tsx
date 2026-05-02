@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import LogoSplash from '@/components/shared/LogoSplash';
+import AccessDenied from '@/pages/AccessDenied';
 
 type AppRole = 'blogger' | 'business' | 'admin';
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -18,12 +19,8 @@ const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview =
   const { user, loading } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<{ role: string | null; approval_status: string | null } | null>(null);
-  const [fetchingProfile, setFetchingProfile] = useState(false);
+  const [fetchingProfile, setFetchingProfile] = useState(true);
   const isAdminPreview = new URLSearchParams(location.search).get('admin_preview') === 'true';
-
-  if (allowAdminPreview && isAdminPreview) {
-    return <>{children}</>;
-  }
 
   useEffect(() => {
     if (loading || !user) {
@@ -58,6 +55,11 @@ const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview =
     };
   }, [loading, user]);
 
+  // Admin preview bypass (after hooks)
+  if (allowAdminPreview && isAdminPreview) {
+    return <>{children}</>;
+  }
+
   if (loading || fetchingProfile) {
     return <LogoSplash />;
   }
@@ -73,12 +75,17 @@ const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview =
   const role = profile.role as AppRole | null;
   const status = profile.approval_status as ApprovalStatus | null;
 
-  if (allowRoles?.length && (!role || !allowRoles.includes(role))) {
+  // Status-based redirects — route to the correct status page instead of 403
+  if (allowStatuses?.length && role !== 'admin' && (!status || !allowStatuses.includes(status))) {
+    if (status === 'pending') return <Navigate to="/pending-approval" replace />;
+    if (status === 'rejected') return <Navigate to="/application-rejected" replace />;
+    // If approved but on wrong page, send through /app
     return <Navigate to="/app" replace />;
   }
 
-  if (allowStatuses?.length && role !== 'admin' && (!status || !allowStatuses.includes(status))) {
-    return <Navigate to="/app" replace />;
+  // Role mismatch → show 403 page in-place
+  if (allowRoles?.length && (!role || !allowRoles.includes(role))) {
+    return <AccessDenied />;
   }
 
   return <>{children}</>;
