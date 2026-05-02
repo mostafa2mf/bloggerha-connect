@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/AdminDashboard.tsx";
 import PendingApproval from "./pages/PendingApproval.tsx";
 import ApplicationRejected from "./pages/ApplicationRejected.tsx";
 import AppRedirectGuard from "./components/AppRedirectGuard";
+import AppRouteGate from "./components/AppRouteGate";
 import AuthGate from "./components/shared/AuthGate";
 
 const queryClient = new QueryClient();
@@ -40,18 +41,18 @@ const App = () => (
                 <Route path="/app" element={<AppRedirectGuard />} />
 
                 {/* Status screens */}
-                <Route path="/pending-approval" element={<PendingApproval />} />
-                <Route path="/application-rejected" element={<ApplicationRejected />} />
+                <Route path="/pending-approval" element={<AppRouteGate allowStatuses={["pending"]}><PendingApproval /></AppRouteGate>} />
+                <Route path="/application-rejected" element={<AppRouteGate allowStatuses={["rejected"]}><ApplicationRejected /></AppRouteGate>} />
 
                 {/* Role dashboards */}
-                <Route path="/blogger-dashboard" element={<Dashboard />} />
-                <Route path="/business-dashboard" element={<BusinessDashboard />} />
-                <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                <Route path="/blogger-dashboard" element={<AppRouteGate allowRoles={["blogger"]} allowStatuses={["approved"]}><Dashboard /></AppRouteGate>} />
+                <Route path="/business-dashboard" element={<AppRouteGate allowRoles={["business"]} allowStatuses={["approved"]}><BusinessDashboard /></AppRouteGate>} />
+                <Route path="/admin-dashboard" element={<AppRouteGate allowRoles={["admin"]}><AdminDashboard /></AppRouteGate>} />
 
                 {/* Legacy aliases — kept so existing links don't 404 */}
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/dashboard/business" element={<BusinessDashboard />} />
-                <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
+                <Route path="/dashboard" element={<Navigate to="/app" replace />} />
+                <Route path="/dashboard/business" element={<Navigate to="/app" replace />} />
+                <Route path="/admin/audit-logs" element={<AppRouteGate allowRoles={["admin"]}><AdminAuditLogs /></AppRouteGate>} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
