@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import LogoSplash from '@/components/shared/LogoSplash';
@@ -11,12 +11,19 @@ interface AppRouteGateProps {
   children: ReactNode;
   allowRoles?: AppRole[];
   allowStatuses?: ApprovalStatus[];
+  allowAdminPreview?: boolean;
 }
 
-const AppRouteGate = ({ children, allowRoles, allowStatuses }: AppRouteGateProps) => {
+const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview = false }: AppRouteGateProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [profile, setProfile] = useState<{ role: string | null; approval_status: string | null } | null>(null);
   const [fetchingProfile, setFetchingProfile] = useState(false);
+  const isAdminPreview = new URLSearchParams(location.search).get('admin_preview') === 'true';
+
+  if (allowAdminPreview && isAdminPreview) {
+    return <>{children}</>;
+  }
 
   useEffect(() => {
     if (loading || !user) {
