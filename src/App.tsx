@@ -54,6 +54,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Navigate to="/app" replace />} />
                 <Route path="/dashboard/business" element={<Navigate to="/app" replace />} />
                 <Route path="/admin/audit-logs" element={<AppRouteGate allowRoles={["admin"]}><AdminAuditLogs /></AppRouteGate>} />
+                <Route path="/debug/redirect-health" element={<DebugRedirectHealth />} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
