@@ -58,22 +58,30 @@ const Footer = () => {
               <li>{t('footer.phone')}</li>
               <li>{t('footer.address')}</li>
             </ul>
-            <div className="flex gap-4 mt-4">
+            <div className="flex gap-5 mt-4 items-center">
               <a
                 href="https://www.instagram.com/bloggerha.hub?igsh=cmR3aDN0czZlZnl4&utm_source=qr"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-transform hover:scale-110"
+                className="group relative p-2 rounded-xl transition-all duration-300 hover:scale-125 hover:rotate-6"
               >
-                <Instagram size={22} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
+                <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300" />
+                <Instagram
+                  size={26}
+                  className="relative text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.7)] group-hover:drop-shadow-[0_0_18px_rgba(251,191,36,0.9)] transition-all duration-300"
+                />
               </a>
               <a
                 href="https://wa.me/989128206254"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-transform hover:scale-110"
+                className="group relative p-2 rounded-xl transition-all duration-300 hover:scale-125 hover:rotate-6"
               >
-                <MessageCircle size={22} className="text-green-400 drop-shadow-[0_0_6px_rgba(74,222,128,0.5)]" />
+                <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-green-400/20 to-emerald-500/20 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300" />
+                <MessageCircle
+                  size={26}
+                  className="relative text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.7)] group-hover:drop-shadow-[0_0_18px_rgba(74,222,128,0.9)] transition-all duration-300"
+                />
               </a>
             </div>
           </motion.div>
