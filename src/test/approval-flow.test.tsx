@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-// Mock supabase
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
 const mockMaybeSingle = vi.fn();
@@ -18,9 +17,8 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/lib/eventLogger', () => ({ logEventSync: vi.fn() }));
 
-// Mock AuthContext
 const mockUser = { id: 'test-user-123', email: 'test@test.com' };
-let authValue = { user: mockUser, loading: false, signOut: vi.fn() };
+let authValue: any = { user: mockUser, loading: false, signOut: vi.fn() };
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => authValue,
@@ -65,6 +63,7 @@ describe('Approval redirect flow (E2E-style)', () => {
     authValue = { user: mockUser, loading: false, signOut: vi.fn() };
   });
 
+  // --- Blogger ---
   it('approved blogger → /blogger-dashboard, never /', async () => {
     setupProfileMock('blogger', 'approved');
     renderGuard();
@@ -72,6 +71,21 @@ describe('Approval redirect flow (E2E-style)', () => {
     expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
   });
 
+  it('pending blogger → /pending-approval, never /', async () => {
+    setupProfileMock('blogger', 'pending');
+    renderGuard();
+    await waitFor(() => expect(screen.getByTestId('pending')).toBeInTheDocument());
+    expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
+  });
+
+  it('rejected blogger → /application-rejected, never /', async () => {
+    setupProfileMock('blogger', 'rejected');
+    renderGuard();
+    await waitFor(() => expect(screen.getByTestId('rejected')).toBeInTheDocument());
+    expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
+  });
+
+  // --- Business ---
   it('approved business → /business-dashboard, never /', async () => {
     setupProfileMock('business', 'approved');
     renderGuard();
@@ -79,26 +93,28 @@ describe('Approval redirect flow (E2E-style)', () => {
     expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
   });
 
+  it('pending business → /pending-approval, never /', async () => {
+    setupProfileMock('business', 'pending');
+    renderGuard();
+    await waitFor(() => expect(screen.getByTestId('pending')).toBeInTheDocument());
+    expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
+  });
+
+  it('rejected business → /application-rejected, never /', async () => {
+    setupProfileMock('business', 'rejected');
+    renderGuard();
+    await waitFor(() => expect(screen.getByTestId('rejected')).toBeInTheDocument());
+    expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
+  });
+
+  // --- Admin ---
   it('admin → /admin-dashboard', async () => {
     setupProfileMock('admin', 'approved');
     renderGuard();
     await waitFor(() => expect(screen.getByTestId('admin-dash')).toBeInTheDocument());
   });
 
-  it('pending → /pending-approval, never /', async () => {
-    setupProfileMock('blogger', 'pending');
-    renderGuard();
-    await waitFor(() => expect(screen.getByTestId('pending')).toBeInTheDocument());
-    expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
-  });
-
-  it('rejected → /application-rejected, never /', async () => {
-    setupProfileMock('blogger', 'rejected');
-    renderGuard();
-    await waitFor(() => expect(screen.getByTestId('rejected')).toBeInTheDocument());
-    expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
-  });
-
+  // --- Unauthenticated ---
   it('unauthenticated → /', async () => {
     authValue = { user: null as any, loading: false, signOut: vi.fn() };
     setupProfileMock('blogger', 'approved');
