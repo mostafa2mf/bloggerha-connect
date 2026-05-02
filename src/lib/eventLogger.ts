@@ -20,7 +20,8 @@ export type AuthEventAction =
   | 'check-registration.call'
   | 'check-registration.error'
   | 'waiting.timeout_fallback'
-  | 'waiting.poll_failure_fallback';
+  | 'waiting.poll_failure_fallback'
+  | 'waiting.poll_failure';
 
 interface LogEventOptions {
   action: AuthEventAction;
