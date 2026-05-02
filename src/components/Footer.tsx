@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Send, Instagram, Twitter, Linkedin } from 'lucide-react';
+import { Send, Instagram, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const container = {
