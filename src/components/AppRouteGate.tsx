@@ -1,0 +1,78 @@
+import { ReactNode, useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import LogoSplash from '@/components/shared/LogoSplash';
+
+type AppRole = 'blogger' | 'business' | 'admin';
+type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+interface AppRouteGateProps {
+  children: ReactNode;
+  allowRoles?: AppRole[];
+  allowStatuses?: ApprovalStatus[];
+}
+
+const AppRouteGate = ({ children, allowRoles, allowStatuses }: AppRouteGateProps) => {
+  const { user, loading } = useAuth();
+  const [profile, setProfile] = useState<{ role: string | null; approval_status: string | null } | null>(null);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
+
+  useEffect(() => {
+    if (loading || !user) {
+      setProfile(null);
+      setFetchingProfile(false);
+      return;
+    }
+
+    let cancelled = false;
+    setFetchingProfile(true);
+
+    void supabase
+      .from('profiles')
+      .select('role, approval_status')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setProfile(data ?? null);
+        setFetchingProfile(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProfile(null);
+        setFetchingProfile(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user]);
+
+  if (loading || fetchingProfile) {
+    return <LogoSplash />;
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!profile) {
+    return <Navigate to="/app" replace />;
+  }
+
+  const role = profile.role as AppRole | null;
+  const status = profile.approval_status as ApprovalStatus | null;
+
+  if (allowRoles?.length && (!role || !allowRoles.includes(role))) {
+    return <Navigate to="/app" replace />;
+  }
+
+  if (allowStatuses?.length && role !== 'admin' && (!status || !allowStatuses.includes(status))) {
+    return <Navigate to="/app" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export default AppRouteGate;
