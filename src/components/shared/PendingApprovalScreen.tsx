@@ -3,10 +3,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Clock, Shield, LogOut, Loader2, CheckCircle, Instagram, Users, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { logEventSync } from '@/lib/eventLogger';
+import ApprovalSyncAlert from '@/components/shared/ApprovalSyncAlert';
 
 interface Props {
   onApproved?: () => void;
@@ -20,14 +21,15 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
   const [profile, setProfile] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [rejectReason, setRejectReason] = useState<string | null>(null);
+  const [syncFailures, setSyncFailures] = useState(0);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const lastStatusRef = useRef<string | null>(null);
-  const failuresRef = useRef(0);
   const reasonLoggedRef = useRef<string | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
+  const backoffRef = useRef(5000); // start at 5s
 
   const handleApproved = () => {
     toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Your account has been approved! 🎉');
-    // Clear any leftover pending-registration markers so refreshes don't bounce
-    // the user back into the waiting screen.
     try {
       localStorage.removeItem('pending_registration_blogger');
       localStorage.removeItem('pending_registration_business');
@@ -70,9 +72,9 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     setProfile((prev: any) => ({ ...(prev || {}), ...(nextProfile || {}), approval_status: nextStatus }));
   };
 
+  // Initial profile load
   useEffect(() => {
     if (!user) return;
-
     supabase
       .from('profiles')
       .select('display_name, username, instagram, followers_count, category, role, approval_status, created_at')
@@ -86,7 +88,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       });
   }, [user]);
 
-  // Auto-redirect to dedicated rejected page when admin rejects
+  // Redirect to rejected page
   useEffect(() => {
     if (profile?.approval_status !== 'rejected') return;
     const timer = window.setTimeout(() => {
@@ -96,37 +98,51 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
     return () => window.clearTimeout(timer);
   }, [profile?.approval_status, profile?.role, navigate]);
 
+  const syncApproval = useCallback(async () => {
+    if (!user || !profile?.role) return;
+    try {
+      const { checkApproval } = await import('@/lib/adminSync');
+      const entityType = profile.role === 'business' ? 'business' : 'influencer';
+      const result: any = await checkApproval(entityType, user.id, user.id);
+      const status = result?.approval?.status ?? null;
+      const reason = result?.approval?.reject_reason ?? null;
+      if (reason) setRejectReason(reason);
+      applyStatus(status);
+      // Reset on success
+      setSyncFailures(0);
+      setLastSyncError(null);
+      backoffRef.current = 5000;
+    } catch (err: any) {
+      const msg = err?.message || 'Unknown error';
+      setSyncFailures(prev => prev + 1);
+      setLastSyncError(msg);
+      // Exponential backoff: 5s → 10s → 20s → 40s → max 60s
+      backoffRef.current = Math.min(backoffRef.current * 2, 60000);
+      logEventSync({
+        action: 'waiting.poll_failure',
+        details: { error: msg, backoff: backoffRef.current, source: 'PendingApprovalScreen' },
+      });
+      // Never redirect to landing — just keep polling with backoff
+    }
+  }, [user, profile?.role, lang]);
+
+  // Polling with exponential backoff
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile?.role) return;
 
-    const syncApproval = async () => {
-      // Wait until we know the role to avoid querying admin DB with the wrong entity_type
-      if (!profile?.role) return;
-      try {
-        const { checkApproval } = await import('@/lib/adminSync');
-        const entityType = profile.role === 'business' ? 'business' : 'influencer';
-        const result: any = await checkApproval(entityType, user.id, user.id);
-        const status = result?.approval?.status ?? null;
-        const reason = result?.approval?.reject_reason ?? null;
-        if (reason) setRejectReason(reason);
-        applyStatus(status);
-        failuresRef.current = 0;
-      } catch (_) {
-        failuresRef.current += 1;
-        if (failuresRef.current >= 6) {
-          // Keep the user inside the authenticated routing flow; don't bounce to landing.
-          logEventSync({
-            action: 'waiting.poll_failure_fallback',
-            details: { failures: failuresRef.current, role: profile?.role ?? null, source: 'PendingApprovalScreen' },
-          });
-          toast.error(lang === 'fa' ? 'ارتباط برقرار نشد. وضعیت حساب دوباره بررسی می‌شود.' : 'Connection issue. Re-checking account status.');
-          navigate('/app', { replace: true });
-        }
-      }
-    };
-
+    // Initial sync
     void syncApproval();
 
+    const scheduleNext = () => {
+      pollTimerRef.current = window.setTimeout(async () => {
+        await syncApproval();
+        scheduleNext();
+      }, backoffRef.current);
+    };
+
+    scheduleNext();
+
+    // Realtime channel for instant updates
     const channel = supabase
       .channel(`approval-status-${user.id}`)
       .on(
@@ -139,34 +155,13 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       )
       .subscribe();
 
-    const poll = window.setInterval(() => {
-      void syncApproval();
-    }, 5000);
-
-    // Hard timeout: if still pending after 10 minutes, force a final recheck but keep the user in guarded flow
-    const hardTimeout = window.setTimeout(async () => {
-      if (lastStatusRef.current === 'pending' || lastStatusRef.current === null) {
-        logEventSync({
-          action: 'waiting.timeout_fallback',
-          details: { role: profile?.role ?? null, lastStatus: lastStatusRef.current, source: 'PendingApprovalScreen' },
-        });
-        toast.info(
-          lang === 'fa'
-            ? 'هنوز در انتظار بررسی است. وضعیت دوباره بارگذاری می‌شود.'
-            : 'Still pending. Re-loading your account status.'
-        );
-        navigate('/app', { replace: true });
-      }
-    }, 10 * 60 * 1000);
-
     return () => {
       supabase.removeChannel(channel);
-      window.clearInterval(poll);
-      window.clearTimeout(hardTimeout);
+      if (pollTimerRef.current) window.clearTimeout(pollTimerRef.current);
     };
-  }, [user, lang, onApproved, profile?.role, signOut, navigate]);
+  }, [user, profile?.role, syncApproval]);
 
-  // Log the reject reason once for audit/tracing when it arrives
+  // Log reject reason once
   useEffect(() => {
     if (profile?.approval_status !== 'rejected' || !rejectReason) return;
     if (reasonLoggedRef.current === rejectReason) return;
@@ -180,20 +175,12 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
   const handleRefresh = async () => {
     if (!user) return;
     setRefreshing(true);
-
     try {
-      const { checkApproval } = await import('@/lib/adminSync');
-      const entityType = profile?.role === 'business' ? 'business' : 'influencer';
-      const result: any = await checkApproval(entityType, user.id, user.id);
-      const status = result?.approval?.status ?? null;
-      const reason = result?.approval?.reject_reason ?? null;
-      if (reason) setRejectReason(reason);
-
-      applyStatus(status);
-
-      if (status === 'approved') {
+      await syncApproval();
+      const st = lastStatusRef.current;
+      if (st === 'approved') {
         toast.success(lang === 'fa' ? 'حساب شما تأیید شد! 🎉' : 'Approved!');
-      } else if (status === 'rejected') {
+      } else if (st === 'rejected') {
         toast.error(lang === 'fa' ? 'متأسفانه حساب شما رد شد.' : 'Rejected.');
       } else {
         toast.info(lang === 'fa' ? 'هنوز در حال بررسی...' : 'Still under review...');
@@ -297,6 +284,13 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
             </p>
           </div>
         )}
+
+        {/* i18n-ready sync failure alert with retry button */}
+        <ApprovalSyncAlert
+          failureCount={syncFailures}
+          lastError={lastSyncError}
+          onRetry={syncApproval}
+        />
 
         <div className="glass rounded-2xl p-4 flex items-center gap-3">
           <Shield size={20} className="text-primary shrink-0" />
