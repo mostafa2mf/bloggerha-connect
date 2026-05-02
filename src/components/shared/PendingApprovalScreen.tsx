@@ -38,9 +38,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       return;
     }
 
-    // Route directly to the right dashboard instead of full reload, which can
-    // re-trigger PendingByEmailScreen via stale localStorage / URL state.
-    const target = profile?.role === 'business' ? '/business-dashboard' : '/blogger-dashboard';
+    const target = '/app';
     logEventSync({ action: 'redirect.to_dashboard', details: { role: profile?.role ?? null, path: target, source: 'PendingApprovalScreen' } });
     navigate(target, { replace: true });
   };
@@ -116,14 +114,13 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       } catch (_) {
         failuresRef.current += 1;
         if (failuresRef.current >= 6) {
-          // ~30s of consecutive sync failures while waiting → bail out gracefully
+          // Keep the user inside the authenticated routing flow; don't bounce to landing.
           logEventSync({
             action: 'waiting.poll_failure_fallback',
             details: { failures: failuresRef.current, role: profile?.role ?? null, source: 'PendingApprovalScreen' },
           });
-          toast.error(lang === 'fa' ? 'ارتباط برقرار نشد. به صفحه اصلی برمی‌گردیم.' : 'Connection issue. Returning to home.');
-          try { await signOut(); } catch (_) {}
-          navigate('/', { replace: true });
+          toast.error(lang === 'fa' ? 'ارتباط برقرار نشد. وضعیت حساب دوباره بررسی می‌شود.' : 'Connection issue. Re-checking account status.');
+          navigate('/app', { replace: true });
         }
       }
     };
@@ -146,7 +143,7 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
       void syncApproval();
     }, 5000);
 
-    // Hard timeout: if still pending after 10 minutes, force a final recheck and exit
+    // Hard timeout: if still pending after 10 minutes, force a final recheck but keep the user in guarded flow
     const hardTimeout = window.setTimeout(async () => {
       if (lastStatusRef.current === 'pending' || lastStatusRef.current === null) {
         logEventSync({
@@ -155,11 +152,10 @@ const PendingApprovalScreen = ({ onApproved }: Props) => {
         });
         toast.info(
           lang === 'fa'
-            ? 'هنوز در انتظار است. به صفحه اصلی برمی‌گردیم — به محض تایید، اطلاع‌رسانی می‌شود.'
-            : 'Still pending. Returning to home — we will notify you on approval.'
+            ? 'هنوز در انتظار بررسی است. وضعیت دوباره بارگذاری می‌شود.'
+            : 'Still pending. Re-loading your account status.'
         );
-        try { await signOut(); } catch (_) {}
-        navigate('/', { replace: true });
+        navigate('/app', { replace: true });
       }
     }, 10 * 60 * 1000);
 
