@@ -7,7 +7,7 @@ const DashMessages = ({ onGoBack }: { onGoBack?: () => void }) => {
   return (
     <div>
       {onGoBack && <BackButton onGoBack={onGoBack} />}
-      <AdminChatPanel lang={lang} />
+      <AdminChatPanel lang={lang} chatLabel={lang === 'fa' ? 'تیام ۲' : 'Tiam 2'} />
     </div>
   );
 };
