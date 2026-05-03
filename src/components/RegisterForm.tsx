@@ -16,10 +16,10 @@ import {
   MapPin,
   CheckCircle2,
   Building2,
-  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   businessRegisterSchema,
   bloggerRegisterSchema,
@@ -256,6 +256,8 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
     "w-full h-12 bg-background/60 border border-destructive rounded-2xl pe-10 ps-11 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40 transition-all placeholder:text-muted-foreground/60";
 
   const getInputClass = (field: string) => (fieldErrors[field] ? errorInputClass : baseInputClass);
+  const selectTriggerClass = (field: string) =>
+    `${getInputClass(field)} justify-between rounded-2xl border text-sm shadow-none bg-background/60 hover:bg-background/70 focus:ring-2 focus:ring-primary/40 focus:border-primary/40`;
 
   const FieldError = ({ field }: { field: string }) => {
     const errs = fieldErrors[field];
@@ -440,22 +442,18 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
             <div>
               <div className="relative">
                 <Users size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-                <select
-                  value={followersCount}
-                  onChange={(e) => setFollowersCount(e.target.value)}
-                  className={getInputClass("followers_count") + " appearance-none cursor-pointer"}
-                >
-                  <option value="">{copy.followers}</option>
-                  {FOLLOWER_OPTIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {isEn ? item.en : item.fa}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={18}
-                  className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                />
+                <Select value={followersCount} onValueChange={setFollowersCount}>
+                  <SelectTrigger className={selectTriggerClass("followers_count")} dir={isEn ? "ltr" : "rtl"}>
+                    <SelectValue placeholder={copy.followers} />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-border/60 bg-background/95 backdrop-blur-xl">
+                    {FOLLOWER_OPTIONS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {isEn ? item.en : item.fa}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <FieldError field="followers_count" />
             </div>
@@ -464,22 +462,18 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
           <div>
             <div className="relative">
               <MapPin size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-              <select
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className={getInputClass("city") + " appearance-none cursor-pointer"}
-              >
-                <option value="">{copy.city}</option>
-                {IRAN_CITIES.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {isEn ? item.en : item.fa}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={18}
-                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
+              <Select value={city} onValueChange={setCity}>
+                <SelectTrigger className={selectTriggerClass("city")} dir={isEn ? "ltr" : "rtl"}>
+                  <SelectValue placeholder={copy.city} />
+                </SelectTrigger>
+                <SelectContent className="glass border-border/60 bg-background/95 backdrop-blur-xl max-h-72">
+                  {IRAN_CITIES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {isEn ? item.en : item.fa}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <FieldError field="city" />
           </div>
@@ -487,22 +481,18 @@ const RegisterForm = forwardRef<HTMLDivElement, Props>(({ type }, ref) => {
           <div>
             <div className="relative">
               <Tag size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className={getInputClass("category") + " appearance-none cursor-pointer"}
-              >
-                <option value="">{isBlogger ? copy.categoryBlogger : copy.categoryBusiness}</option>
-                {categories.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {isEn ? item.en : item.fa}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={18}
-                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className={selectTriggerClass("category")} dir={isEn ? "ltr" : "rtl"}>
+                  <SelectValue placeholder={isBlogger ? copy.categoryBlogger : copy.categoryBusiness} />
+                </SelectTrigger>
+                <SelectContent className="glass border-border/60 bg-background/95 backdrop-blur-xl">
+                  {categories.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {isEn ? item.en : item.fa}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <FieldError field="category" />
           </div>
