@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Loader2, MessageCircle, Check, CheckCheck, Mic, Image as ImageIcon } from 'lucide-react';
+import { Send, Loader2, MessageCircle, Check, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Conversation {
@@ -26,6 +26,10 @@ interface Message {
 
 const ADMIN_ID = '00000000-0000-0000-0000-000000000001';
 
+const dbg = (tag: string, ...args: unknown[]) => {
+  console.log(`[MSG:AdminPanel][${tag}]`, ...args);
+};
+
 const AdminMessages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -39,16 +43,26 @@ const AdminMessages = () => {
 
   const fetchConversations = async () => {
     setLoading(true);
-    // Get all messages involving admin
-    const { data: msgs } = await supabase
+    dbg('fetchConvs', 'loading conversations for ADMIN_ID=', ADMIN_ID);
+    const { data: msgs, error } = await supabase
       .from('messages')
       .select('*')
       .or(`sender_id.eq.${ADMIN_ID},receiver_id.eq.${ADMIN_ID}`)
       .order('created_at', { ascending: false });
 
-    if (!msgs) { setLoading(false); return; }
+    if (error) {
+      dbg('fetchConvs-error', error.message, error.code, error.details);
+      setLoading(false);
+      return;
+    }
+    if (!msgs || msgs.length === 0) {
+      dbg('fetchConvs', 'no messages found');
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+    dbg('fetchConvs', 'total msgs=', msgs.length);
 
-    // Group by user
     const userMap = new Map<string, { msgs: any[]; unread: number }>();
     for (const m of msgs) {
       const userId = m.sender_id === ADMIN_ID ? m.receiver_id : m.sender_id;
@@ -58,8 +72,9 @@ const AdminMessages = () => {
       if (m.sender_id !== ADMIN_ID && !m.is_read) entry.unread++;
     }
 
-    // Get profiles
     const userIds = Array.from(userMap.keys());
+    dbg('fetchConvs', 'unique users=', userIds.length);
+
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, username, role')
@@ -87,13 +102,18 @@ const AdminMessages = () => {
 
   const selectUser = async (userId: string) => {
     setSelectedUser(userId);
-    const { data } = await supabase
+    dbg('selectUser', userId);
+    const { data, error } = await supabase
       .from('messages')
       .select('*')
       .or(`and(sender_id.eq.${userId},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${userId})`)
       .order('created_at', { ascending: true });
+    if (error) {
+      dbg('selectUser-error', error.message, error.code);
+    } else {
+      dbg('selectUser-ok', 'count=', data?.length);
+    }
     setMessages((data as Message[]) || []);
-    // Mark as read
     await supabase
       .from('messages')
       .update({ is_read: true })
@@ -113,6 +133,7 @@ const AdminMessages = () => {
       .channel('admin-all-messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as Message;
+        dbg('realtime', msg.id, 'sender=', msg.sender_id, 'receiver=', msg.receiver_id);
         if (msg.sender_id === ADMIN_ID || msg.receiver_id === ADMIN_ID) {
           const userId = msg.sender_id === ADMIN_ID ? msg.receiver_id : msg.sender_id;
           if (userId === selectedUser) {
@@ -131,12 +152,19 @@ const AdminMessages = () => {
   const handleSend = async () => {
     if (!newMsg.trim() || !selectedUser) return;
     setSending(true);
-    const { error } = await supabase.from('messages').insert({
+    const payload = {
       sender_id: ADMIN_ID,
       receiver_id: selectedUser,
       content: newMsg.trim(),
-    });
-    if (error) { toast.error('Failed to send'); }
+    };
+    dbg('send', payload);
+    const { error } = await supabase.from('messages').insert(payload);
+    if (error) {
+      dbg('send-error', error.message, error.code, error.details, error.hint);
+      toast.error('Failed to send: ' + error.message);
+    } else {
+      dbg('send-ok');
+    }
     setNewMsg('');
     setSending(false);
   };
