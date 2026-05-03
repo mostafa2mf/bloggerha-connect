@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import AdminMessages from '@/components/admin/AdminMessages';
 import AdminCampaigns from '@/components/admin/AdminCampaigns';
 import AdminGuests from '@/components/admin/AdminGuests';
 import AdminContentReview from '@/components/admin/AdminContentReview';
-import AdminAuditLogs from '@/pages/AdminAuditLogs';
-import { MessageCircle, Megaphone, Users, Upload, ShieldAlert } from 'lucide-react';
+import { MessageCircle, Megaphone, Users, Upload, ShieldAlert, Loader2 } from 'lucide-react';
+
+// Lazy load audit logs to avoid circular issues
+const AdminAuditLogsLazy = lazy(() => import('@/pages/AdminAuditLogs'));
 
 type AdminTab = 'messages' | 'campaigns' | 'guests' | 'content-review' | 'audit-logs';
 
@@ -27,7 +29,7 @@ const AdminDashboard = () => {
       case 'campaigns': return <AdminCampaigns />;
       case 'guests': return <AdminGuests />;
       case 'content-review': return <AdminContentReview />;
-      case 'audit-logs': return <AdminAuditLogsEmbedded />;
+      case 'audit-logs': return <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={24} /></div>}><AdminAuditLogsLazy /></Suspense>;
     }
   };
 
