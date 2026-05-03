@@ -39,13 +39,13 @@ const BizGuests = ({ onGoBack }: { onGoBack?: () => void }) => {
     nextWeek.setDate(nextWeek.getDate() + 7);
     const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('guests')
-      .select('*, campaigns(title)' as any)
+      .select('*, campaigns(title)')
       .eq('business_id', user.id)
       .gte('visit_date', today)
       .lte('visit_date', nextWeekStr)
-      .order('visit_date', { ascending: true }) as any;
+      .order('visit_date', { ascending: true });
     
     setGuests((data || []) as Guest[]);
     setLoading(false);

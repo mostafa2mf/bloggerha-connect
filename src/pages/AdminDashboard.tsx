@@ -27,7 +27,7 @@ const AdminDashboard = () => {
       case 'campaigns': return <AdminCampaigns />;
       case 'guests': return <AdminGuests />;
       case 'content-review': return <AdminContentReview />;
-      case 'audit-logs': return <AdminAuditLogs embedded />;
+      case 'audit-logs': return <AdminAuditLogsEmbedded />;
     }
   };
 
