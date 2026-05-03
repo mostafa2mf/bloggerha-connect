@@ -13,7 +13,7 @@ interface Props {
 
 const shortcuts = [
   { id: 'campaigns', icon: Megaphone, labelFa: 'کمپین‌ها', labelEn: 'Campaigns', desc_fa: 'مدیریت کمپین‌ها', desc_en: 'Manage campaigns', gradient: 'from-orange-400 to-amber-500', bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-orange-200 dark:border-orange-800/40' },
-  { id: 'applications', icon: Users, labelFa: 'مهمان‌ها', labelEn: 'Guests', desc_fa: 'مهمان‌های آینده', desc_en: 'Upcoming guests', gradient: 'from-sky-400 to-blue-500', bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800/40' },
+  { id: 'guests', icon: Users, labelFa: 'مهمان‌ها', labelEn: 'Guests', desc_fa: 'مهمان‌های آینده', desc_en: 'Upcoming guests', gradient: 'from-sky-400 to-blue-500', bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800/40' },
   { id: 'messages', icon: MessageCircle, labelFa: 'پیام‌ها', labelEn: 'Messages', desc_fa: 'گفتگو با ادمین', desc_en: 'Chat with admin', gradient: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-200 dark:border-emerald-800/40' },
   { id: 'profile', icon: User, labelFa: 'پروفایل', labelEn: 'Profile', desc_fa: 'ویرایش اطلاعات', desc_en: 'Edit your info', gradient: 'from-amber-400 to-yellow-500', bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800/40' },
 ];
