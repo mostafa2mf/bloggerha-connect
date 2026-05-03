@@ -269,6 +269,8 @@ export type Database = {
           instagram: string | null
           phone: string | null
           profile_completion: number | null
+          rejected_at: string | null
+          rejection_reason: string | null
           role: string
           security_keyword: string | null
           updated_at: string
@@ -294,6 +296,8 @@ export type Database = {
           instagram?: string | null
           phone?: string | null
           profile_completion?: number | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           role?: string
           security_keyword?: string | null
           updated_at?: string
@@ -319,6 +323,8 @@ export type Database = {
           instagram?: string | null
           phone?: string | null
           profile_completion?: number | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           role?: string
           security_keyword?: string | null
           updated_at?: string

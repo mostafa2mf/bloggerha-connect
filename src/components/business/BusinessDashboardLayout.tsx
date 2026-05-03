@@ -65,7 +65,7 @@ const BusinessDashboardLayout = () => {
       <div className="flex flex-col min-h-[calc(100vh-4rem)]">
         <DashTopBar role="business" onGoHome={() => {}} />
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <RejectedDashboardScreen role="business" />
+          <RejectedDashboardScreen role="business" onStatusChange={(s) => setApprovalStatus(s)} />
         </main>
       </div>
     );

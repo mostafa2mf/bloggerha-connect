@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, XCircle, Clock, Users, Instagram, MapPin, Tag, Eye } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2, CheckCircle2, XCircle, Clock, Users, Instagram, MapPin, Tag, Eye, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -23,7 +24,12 @@ type Profile = {
   created_at: string;
 };
 
+const dbg = (tag: string, ...args: unknown[]) => {
+  console.log(`[ADMIN:Approvals][${tag}]`, ...args);
+};
+
 const AdminUserApprovals = () => {
+  const { user } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
@@ -40,26 +46,107 @@ const AdminUserApprovals = () => {
     if (filter === 'pending') query = query.eq('approval_status', 'pending');
     if (roleFilter !== 'all') query = query.eq('role', roleFilter);
     query = query.neq('role', 'admin');
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) dbg('fetch-error', error.message);
+    else dbg('fetch-ok', 'count=', data?.length);
     setProfiles((data || []) as Profile[]);
     setLoading(false);
   };
 
-  const handleApprove = async (userId: string) => {
-    setProcessing(userId);
-    const { error } = await supabase.from('profiles').update({ approval_status: 'approved' }).eq('user_id', userId);
-    if (error) toast.error(error.message);
-    else toast.success('User approved');
+  const writeAuditLog = async (action: string, targetUserId: string, details: Record<string, unknown>) => {
+    if (!user) return;
+    dbg('audit', action, targetUserId, details);
+    const { error } = await supabase.from('audit_logs').insert({
+      user_id: user.id,
+      action,
+      details: { target_user_id: targetUserId, ...details },
+      ip_address: null,
+    });
+    if (error) dbg('audit-error', error.message);
+  };
+
+  const handleApprove = async (targetUserId: string) => {
+    if (!user) {
+      toast.error('Not authenticated');
+      return;
+    }
+    setProcessing(targetUserId);
+    dbg('approve', 'target=', targetUserId, 'admin=', user.id);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        approval_status: 'approved',
+        rejection_reason: null,
+        rejected_at: null,
+      })
+      .eq('user_id', targetUserId);
+
+    if (error) {
+      dbg('approve-error', error.message, error.code, error.details);
+      toast.error('Approve failed: ' + error.message);
+    } else {
+      dbg('approve-ok');
+      toast.success('User approved ✅');
+      await writeAuditLog('user_approved', targetUserId, {
+        previous_status: 'pending',
+        new_status: 'approved',
+      });
+      // Send notification to user
+      await supabase.from('notifications').insert({
+        user_id: targetUserId,
+        type: 'approval',
+        title: 'حساب شما تأیید شد',
+        message: 'حساب شما توسط ادمین تأیید شد و اکنون می‌توانید از داشبورد استفاده کنید.',
+        entity_type: 'profile',
+        entity_id: targetUserId,
+      }).then(({ error: nErr }) => { if (nErr) dbg('notif-err', nErr.message); });
+    }
     setProcessing(null);
     fetchProfiles();
   };
 
-  const handleReject = async (userId: string) => {
-    setProcessing(userId);
-    const { error } = await supabase.from('profiles').update({ approval_status: 'rejected' }).eq('user_id', userId);
-    if (error) toast.error(error.message);
-    else toast.success('User rejected');
+  const handleReject = async (targetUserId: string) => {
+    if (!user) {
+      toast.error('Not authenticated');
+      return;
+    }
+    const reason = rejectReasons[targetUserId]?.trim() || null;
+    setProcessing(targetUserId);
+    dbg('reject', 'target=', targetUserId, 'admin=', user.id, 'reason=', reason);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        approval_status: 'rejected',
+        rejection_reason: reason,
+        rejected_at: new Date().toISOString(),
+      })
+      .eq('user_id', targetUserId);
+
+    if (error) {
+      dbg('reject-error', error.message, error.code, error.details);
+      toast.error('Reject failed: ' + error.message);
+    } else {
+      dbg('reject-ok');
+      toast.success('User rejected');
+      await writeAuditLog('user_rejected', targetUserId, {
+        previous_status: 'pending',
+        new_status: 'rejected',
+        rejection_reason: reason,
+      });
+      // Send notification to user
+      await supabase.from('notifications').insert({
+        user_id: targetUserId,
+        type: 'rejection',
+        title: 'درخواست شما رد شد',
+        message: reason ? `درخواست شما رد شد. دلیل: ${reason}` : 'درخواست عضویت شما تأیید نشد.',
+        entity_type: 'profile',
+        entity_id: targetUserId,
+      }).then(({ error: nErr }) => { if (nErr) dbg('notif-err', nErr.message); });
+    }
     setProcessing(null);
+    setRejectReasons(prev => { const n = { ...prev }; delete n[targetUserId]; return n; });
     fetchProfiles();
   };
 

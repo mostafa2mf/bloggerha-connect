@@ -64,7 +64,7 @@ const DashboardLayout = () => {
       <div className="flex flex-col min-h-[calc(100vh-4rem)]">
         <DashTopBar onGoHome={() => {}} />
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <RejectedDashboardScreen role="blogger" />
+          <RejectedDashboardScreen role="blogger" onStatusChange={(s) => setApprovalStatus(s)} />
         </main>
       </div>
     );
