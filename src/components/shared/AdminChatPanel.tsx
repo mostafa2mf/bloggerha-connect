@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { syncChatMessage, fetchAdminMessages } from '@/lib/adminSync';
 import { Send, Loader2, MessageCircle, Check, CheckCheck, Image, Mic, X, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateFile } from '@/lib/fileValidation';
@@ -16,21 +15,20 @@ interface Message {
   created_at: string;
   attachment_type?: string | null;
   attachment_url?: string | null;
-  status?: 'sending' | 'sent' | 'failed';
 }
 
 interface Props {
   lang: 'fa' | 'en';
+  chatLabel?: string;
 }
-
-const ADMIN_ID = '00000000-0000-0000-0000-000000000001';
 
 const dbg = (tag: string, ...args: unknown[]) => {
   console.log(`[MSG:UserChat][${tag}]`, ...args);
 };
 
-const AdminChatPanel = ({ lang }: Props) => {
+const AdminChatPanel = ({ lang, chatLabel }: Props) => {
   const { user } = useAuth();
+  const [adminId, setAdminId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,28 +40,43 @@ const AdminChatPanel = ({ lang }: Props) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  // Step 1: Resolve the real admin user_id
   useEffect(() => {
-    if (!user) return;
-    dbg('init', 'user.id=', user.id);
+    (async () => {
+      dbg('resolve-admin', 'looking up admin user...');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        dbg('resolve-admin-err', error.message);
+      } else if (data) {
+        dbg('resolve-admin-ok', data.user_id);
+        setAdminId(data.user_id);
+      } else {
+        dbg('resolve-admin', 'no admin found in profiles');
+      }
+    })();
+  }, []);
+
+  // Step 2: Fetch messages once we have both user and adminId
+  useEffect(() => {
+    if (!user || !adminId) return;
+    dbg('init', 'user=', user.id, 'admin=', adminId);
     fetchMessages();
-    const interval = setInterval(() => {
-      fetchAdminMessages(user.id)
-        .then((res) => { dbg('poll-sync', res); return fetchMessages(); })
-        .catch((e) => dbg('poll-sync-err', e));
-    }, 15000);
-    fetchAdminMessages(user.id).catch((e) => dbg('initial-sync-err', e));
-    return () => clearInterval(interval);
-  }, [user]);
+  }, [user, adminId]);
 
   const fetchMessages = async () => {
-    if (!user) return;
+    if (!user || !adminId) return;
     setLoading(true);
-    dbg('fetch', 'querying messages for user', user.id, 'admin', ADMIN_ID);
+    dbg('fetch', 'querying messages between', user.id, 'and', adminId);
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${user.id})`
+        `and(sender_id.eq.${user.id},receiver_id.eq.${adminId}),and(sender_id.eq.${adminId},receiver_id.eq.${user.id})`
       )
       .order('created_at', { ascending: true });
     if (error) {
@@ -72,11 +85,11 @@ const AdminChatPanel = ({ lang }: Props) => {
       dbg('fetch-ok', 'count=', data?.length);
     }
     setMessages((data as Message[]) || []);
-    // mark admin msgs as read
+    // Mark admin messages as read
     await supabase
       .from('messages')
       .update({ is_read: true })
-      .eq('sender_id', ADMIN_ID)
+      .eq('sender_id', adminId)
       .eq('receiver_id', user.id)
       .eq('is_read', false);
     setLoading(false);
@@ -84,14 +97,14 @@ const AdminChatPanel = ({ lang }: Props) => {
 
   // Realtime
   useEffect(() => {
-    if (!user) return;
+    if (!user || !adminId) return;
     const channel = supabase
-      .channel('admin-chat')
+      .channel(`chat-${user.id}-${adminId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as Message;
         dbg('realtime', 'new msg', msg.id, 'sender=', msg.sender_id, 'receiver=', msg.receiver_id);
-        if ((msg.sender_id === ADMIN_ID && msg.receiver_id === user.id) ||
-            (msg.sender_id === user.id && msg.receiver_id === ADMIN_ID)) {
+        if ((msg.sender_id === adminId && msg.receiver_id === user.id) ||
+            (msg.sender_id === user.id && msg.receiver_id === adminId)) {
           setMessages(prev => {
             if (prev.some(m => m.id === msg.id)) return prev;
             return [...prev, msg];
@@ -103,7 +116,7 @@ const AdminChatPanel = ({ lang }: Props) => {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, adminId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -120,7 +133,7 @@ const AdminChatPanel = ({ lang }: Props) => {
   };
 
   const handleSend = async () => {
-    if ((!newMsg.trim() && !attachPreview) || !user) return;
+    if ((!newMsg.trim() && !attachPreview) || !user || !adminId) return;
     setSending(true);
     try {
       let attachment_url: string | null = null;
@@ -136,7 +149,7 @@ const AdminChatPanel = ({ lang }: Props) => {
 
       const insertPayload = {
         sender_id: user.id,
-        receiver_id: ADMIN_ID,
+        receiver_id: adminId,
         content,
         attachment_type,
         attachment_url,
@@ -149,16 +162,7 @@ const AdminChatPanel = ({ lang }: Props) => {
         dbg('send-error', error.message, error.code, error.details, error.hint);
         throw error;
       }
-      dbg('send-ok', 'message inserted');
-
-      syncChatMessage({
-        sender_id: user.id,
-        sender_name: user.user_metadata?.username || user.email || 'User',
-        sender_role: user.user_metadata?.role === 'business' ? 'business' : 'influencer',
-        content,
-        attachment_type,
-        attachment_url,
-      }).then(r => dbg('sync-ok', r)).catch(e => dbg('sync-err', e));
+      dbg('send-ok', 'message inserted successfully');
 
       setNewMsg('');
       setAttachPreview(null);
@@ -217,7 +221,6 @@ const AdminChatPanel = ({ lang }: Props) => {
     return d.toLocaleDateString(lang === 'fa' ? 'fa-IR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   };
 
-  // Group messages by date
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
   messages.forEach(m => {
     const dateKey = new Date(m.created_at).toDateString();
@@ -253,32 +256,45 @@ const AdminChatPanel = ({ lang }: Props) => {
     );
   };
 
+  const displayLabel = chatLabel || (lang === 'fa' ? 'پشتیبانی تیام' : 'Tiam Support');
+
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] rounded-3xl overflow-hidden glass">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-border/50">
         <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-amber-500/30">
-          A
+          T
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-bold">{lang === 'fa' ? 'پشتیبانی ادمین' : 'Admin Support'}</h3>
+          <h3 className="text-sm font-bold">{displayLabel}</h3>
           <span className="text-[10px] text-green-400 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
             {lang === 'fa' ? 'آنلاین' : 'Online'}
           </span>
         </div>
+        {!adminId && (
+          <span className="text-[10px] text-amber-400 flex items-center gap-1">
+            <Loader2 size={10} className="animate-spin" />
+            {lang === 'fa' ? 'در حال اتصال...' : 'Connecting...'}
+          </span>
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={24} /></div>
+        ) : !adminId ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <Loader2 size={28} className="animate-spin text-amber-400 mb-4" />
+            <p className="text-xs text-muted-foreground">{lang === 'fa' ? 'در حال اتصال به پشتیبانی...' : 'Connecting to support...'}</p>
+          </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
               <MessageCircle size={28} className="text-primary" />
             </div>
-            <h3 className="text-base font-bold mb-1">{lang === 'fa' ? 'شروع گفتگو با ادمین' : 'Start a conversation'}</h3>
+            <h3 className="text-base font-bold mb-1">{lang === 'fa' ? 'شروع گفتگو با تیام' : 'Start a conversation with Tiam'}</h3>
             <p className="text-xs text-muted-foreground max-w-xs">
               {lang === 'fa' ? 'متن، تصویر یا پیام صوتی ارسال کنید' : 'Send text, images or voice messages'}
             </p>
@@ -363,13 +379,14 @@ const AdminChatPanel = ({ lang }: Props) => {
             value={newMsg}
             onChange={e => setNewMsg(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={lang === 'fa' ? 'پیام به ادمین...' : 'Message admin...'}
+            placeholder={lang === 'fa' ? 'پیام به تیام...' : 'Message Tiam...'}
             className="flex-1 bg-background/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            disabled={!adminId}
           />
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
-            disabled={sending || (!newMsg.trim() && !attachPreview)}
+            disabled={sending || (!newMsg.trim() && !attachPreview) || !adminId}
             className="p-2.5 rounded-xl gradient-bg text-primary-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
           >
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -377,7 +394,6 @@ const AdminChatPanel = ({ lang }: Props) => {
         </div>
       </div>
 
-      {/* Hidden file input */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
     </div>
   );
