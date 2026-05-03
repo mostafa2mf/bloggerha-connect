@@ -7,17 +7,16 @@ import LogoSplash from '@/components/shared/LogoSplash';
 import AuthRouteDebugScreen from '@/components/shared/AuthRouteDebugScreen';
 
 /**
- * Single source of truth for post-login / post-approval routing.
+ * Single source of truth for post-login routing.
  *
  * Rules:
  *  - Unauthenticated → /
- *  - role=blogger  + approved → /blogger-dashboard
- *  - role=business + approved → /business-dashboard
- *  - role=admin               → /admin-dashboard
- *  - approval_status=pending  → /pending-approval
- *  - approval_status=rejected → /application-rejected
+ *  - role=admin → /admin-dashboard
+ *  - role=blogger (any status) → /blogger-dashboard
+ *  - role=business (any status) → /business-dashboard
  *
- * Never sends an approved user to "/".
+ * NEVER redirects pending/rejected users to "/" or a separate status page.
+ * Dashboard-level gating handles pending/rejected states.
  */
 const AppRedirectGuard = () => {
   const { user, loading } = useAuth();
@@ -59,9 +58,7 @@ const AppRedirectGuard = () => {
       setFetchingProfile(false);
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [loading, user]);
 
   const decision = useMemo(() => {
@@ -74,26 +71,16 @@ const AppRedirectGuard = () => {
       return { kind: 'invalid-role' as const };
     }
 
-    if (!['pending', 'approved', 'rejected'].includes(profile.approval_status ?? '')) {
-      return { kind: 'invalid-status' as const };
-    }
-
     if (profile.role === 'admin') {
       return { kind: 'redirect' as const, target: '/admin-dashboard', reason: 'admin' };
     }
 
-    if (profile.approval_status === 'pending') {
-      return { kind: 'redirect' as const, target: '/pending-approval', reason: 'pending' };
-    }
-
-    if (profile.approval_status === 'rejected') {
-      return { kind: 'redirect' as const, target: '/application-rejected', reason: 'rejected' };
-    }
-
+    // Always send to dashboard regardless of approval status
+    // Dashboard-level gating will show pending/rejected screens
     return {
       kind: 'redirect' as const,
       target: profile.role === 'business' ? '/business-dashboard' : '/blogger-dashboard',
-      reason: 'approved',
+      reason: profile.approval_status || 'routing',
     };
   }, [fetchingProfile, loading, profile, queryError, user]);
 
@@ -115,20 +102,7 @@ const AppRedirectGuard = () => {
     console.info('[AppRedirectGuard]', payload);
 
     if (decision.kind === 'redirect') {
-      if (decision.target === '/') {
-        logEventSync({ action: 'redirect.to_landing', details: { ...payload, reason: decision.reason, source: 'AppRedirectGuard' } });
-      } else if (decision.target === '/pending-approval') {
-        logEventSync({ action: 'redirect.to_pending', details: { ...payload, source: 'AppRedirectGuard' } });
-      } else if (decision.target === '/application-rejected') {
-        logEventSync({ action: 'redirect.to_rejected', details: { ...payload, source: 'AppRedirectGuard' } });
-      } else {
-        logEventSync({ action: 'redirect.to_dashboard', details: { ...payload, source: 'AppRedirectGuard' } });
-      }
-      return;
-    }
-
-    if (decision.kind === 'error') {
-      logEventSync({ action: 'redirect.error', details: { ...payload, error: decision.message, source: 'AppRedirectGuard' } });
+      logEventSync({ action: 'redirect.to_dashboard', details: { ...payload, source: 'AppRedirectGuard' } });
     }
   }, [decision, location.pathname, profile, user?.id]);
 
@@ -153,16 +127,6 @@ const AppRedirectGuard = () => {
       <AuthRouteDebugScreen
         title="Invalid role"
         description="The authenticated profile has an unexpected role value."
-        payload={{ userId: user?.id ?? null, pathname: location.pathname, profile }}
-      />
-    );
-  }
-
-  if (decision.kind === 'invalid-status') {
-    return (
-      <AuthRouteDebugScreen
-        title="Invalid approval status"
-        description="The authenticated profile has an unexpected approval status value."
         payload={{ userId: user?.id ?? null, pathname: location.pathname, profile }}
       />
     );

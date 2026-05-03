@@ -5,14 +5,16 @@ import AdminMessages from '@/components/admin/AdminMessages';
 import AdminCampaigns from '@/components/admin/AdminCampaigns';
 import AdminGuests from '@/components/admin/AdminGuests';
 import AdminContentReview from '@/components/admin/AdminContentReview';
-import { MessageCircle, Megaphone, Users, Upload, ShieldAlert, Loader2 } from 'lucide-react';
+import AdminUserApprovals from '@/components/admin/AdminUserApprovals';
+import { MessageCircle, Megaphone, Users, Upload, ShieldAlert, Loader2, UserCheck } from 'lucide-react';
 
 // Lazy load audit logs to avoid circular issues
 const AdminAuditLogsLazy = lazy(() => import('@/pages/AdminAuditLogs'));
 
-type AdminTab = 'messages' | 'campaigns' | 'guests' | 'content-review' | 'audit-logs';
+type AdminTab = 'approvals' | 'messages' | 'campaigns' | 'guests' | 'content-review' | 'audit-logs';
 
 const tabs: { id: AdminTab; icon: any; label: string }[] = [
+  { id: 'approvals', icon: UserCheck, label: 'User Approvals' },
   { id: 'messages', icon: MessageCircle, label: 'Messages' },
   { id: 'campaigns', icon: Megaphone, label: 'Campaigns' },
   { id: 'guests', icon: Users, label: 'Guests' },
@@ -21,10 +23,11 @@ const tabs: { id: AdminTab; icon: any; label: string }[] = [
 ];
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<AdminTab>('messages');
+  const [activeTab, setActiveTab] = useState<AdminTab>('approvals');
 
   const renderTab = () => {
     switch (activeTab) {
+      case 'approvals': return <AdminUserApprovals />;
       case 'messages': return <AdminMessages />;
       case 'campaigns': return <AdminCampaigns />;
       case 'guests': return <AdminGuests />;

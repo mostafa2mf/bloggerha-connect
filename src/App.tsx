@@ -41,13 +41,13 @@ const App = () => (
                 {/* Single source of truth for post-login routing */}
                 <Route path="/app" element={<AppRedirectGuard />} />
 
-                {/* Status screens */}
-                <Route path="/pending-approval" element={<AppRouteGate allowStatuses={["pending"]}><PendingApproval /></AppRouteGate>} />
-                <Route path="/application-rejected" element={<AppRouteGate allowStatuses={["rejected"]}><ApplicationRejected /></AppRouteGate>} />
+                {/* Status screens — redirect to dashboard now (dashboard handles status internally) */}
+                <Route path="/pending-approval" element={<Navigate to="/app" replace />} />
+                <Route path="/application-rejected" element={<Navigate to="/app" replace />} />
 
-                {/* Role dashboards */}
-                <Route path="/blogger-dashboard" element={<AppRouteGate allowRoles={["blogger"]} allowStatuses={["approved"]} allowAdminPreview><Dashboard /></AppRouteGate>} />
-                <Route path="/business-dashboard" element={<AppRouteGate allowRoles={["business"]} allowStatuses={["approved"]} allowAdminPreview><BusinessDashboard /></AppRouteGate>} />
+                {/* Role dashboards — no status restriction, dashboard handles pending/rejected internally */}
+                <Route path="/blogger-dashboard" element={<AppRouteGate allowRoles={["blogger"]} allowAdminPreview><Dashboard /></AppRouteGate>} />
+                <Route path="/business-dashboard" element={<AppRouteGate allowRoles={["business"]} allowAdminPreview><BusinessDashboard /></AppRouteGate>} />
                 <Route path="/admin-dashboard" element={<AppRouteGate allowRoles={["admin"]}><AdminDashboard /></AppRouteGate>} />
 
                 {/* Legacy aliases — kept so existing links don't 404 */}

@@ -6,16 +6,19 @@ import LogoSplash from '@/components/shared/LogoSplash';
 import AccessDenied from '@/pages/AccessDenied';
 
 type AppRole = 'blogger' | 'business' | 'admin';
-type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 interface AppRouteGateProps {
   children: ReactNode;
   allowRoles?: AppRole[];
-  allowStatuses?: ApprovalStatus[];
   allowAdminPreview?: boolean;
 }
 
-const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview = false }: AppRouteGateProps) => {
+/**
+ * Route-level gate that only checks ROLE, not approval status.
+ * Approval status gating is handled INSIDE each dashboard layout.
+ * This ensures pending/rejected users stay on their dashboard route.
+ */
+const AppRouteGate = ({ children, allowRoles, allowAdminPreview = false }: AppRouteGateProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<{ role: string | null; approval_status: string | null } | null>(null);
@@ -50,12 +53,10 @@ const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview =
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [loading, user]);
 
-  // Admin preview bypass (after hooks)
+  // Admin preview bypass
   if (allowAdminPreview && isAdminPreview) {
     return <>{children}</>;
   }
@@ -73,17 +74,8 @@ const AppRouteGate = ({ children, allowRoles, allowStatuses, allowAdminPreview =
   }
 
   const role = profile.role as AppRole | null;
-  const status = profile.approval_status as ApprovalStatus | null;
 
-  // Status-based redirects — route to the correct status page instead of 403
-  if (allowStatuses?.length && role !== 'admin' && (!status || !allowStatuses.includes(status))) {
-    if (status === 'pending') return <Navigate to="/pending-approval" replace />;
-    if (status === 'rejected') return <Navigate to="/application-rejected" replace />;
-    // If approved but on wrong page, send through /app
-    return <Navigate to="/app" replace />;
-  }
-
-  // Role mismatch → show 403 page in-place
+  // Only check role — approval status is handled inside dashboard layouts
   if (allowRoles?.length && (!role || !allowRoles.includes(role))) {
     return <AccessDenied />;
   }

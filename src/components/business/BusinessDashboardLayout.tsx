@@ -1,9 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { checkApproval } from '@/lib/adminSync';
 import { useSearchParams } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import DashTopBar from '../dashboard/DashTopBar';
 import BizHome from './BizHome';
@@ -12,7 +10,8 @@ import BizApplications from './BizApplications';
 import BizGuests from './BizGuests';
 import BizMessages from './BizMessages';
 import BizProfile from './BizProfile';
-import PendingApprovalScreen from '../shared/PendingApprovalScreen';
+import PendingDashboardScreen from '../shared/PendingDashboardScreen';
+import RejectedDashboardScreen from '../shared/RejectedDashboardScreen';
 import { Loader2 } from 'lucide-react';
 
 type BizTabId = 'home' | 'campaigns' | 'applications' | 'guests' | 'messages' | 'profile';
@@ -25,42 +24,20 @@ const BusinessDashboardLayout = () => {
   const isAdminPreview = searchParams.get('admin_preview') === 'true';
   const [approvalStatus, setApprovalStatus] = useState<string | null>(isAdminPreview ? 'approved' : null);
   const [checking, setChecking] = useState(!isAdminPreview);
-  const welcomedRef = useRef(false);
 
   useEffect(() => {
-    if (approvalStatus === 'approved' && !welcomedRef.current && user) {
-      welcomedRef.current = true;
-      setTimeout(() => {
-        toast.info(
-          lang === 'fa'
-            ? 'لطفاً قبل از هر کاری پروفایل خود را تکمیل کنید'
-            : 'Please complete your profile before doing anything else',
-          { duration: 6000 }
-        );
-      }, 800);
-    }
-  }, [approvalStatus, user, lang]);
-
-  useEffect(() => {
-    if (!user) { setChecking(false); return; }
+    if (!user || isAdminPreview) { setChecking(false); return; }
     const checkStatus = async () => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('approval_status')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (profile?.approval_status === 'approved') {
-        setApprovalStatus('approved');
-        setChecking(false);
-        return;
-      }
-      const result = await checkApproval('business', user.id, user.id);
-      const status = result?.approval?.status || profile?.approval_status || 'pending';
-      setApprovalStatus(status);
+      setApprovalStatus(profile?.approval_status || 'pending');
       setChecking(false);
     };
     checkStatus();
-  }, [user]);
+  }, [user, isAdminPreview]);
 
   if (checking) {
     return (
@@ -70,8 +47,28 @@ const BusinessDashboardLayout = () => {
     );
   }
 
-  if (approvalStatus !== 'approved') {
-    return <PendingApprovalScreen onApproved={() => { setApprovalStatus('approved'); }} />;
+  // Pending: show premium pending screen inside dashboard layout
+  if (approvalStatus === 'pending') {
+    return (
+      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+        <DashTopBar role="business" onGoHome={() => {}} />
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <PendingDashboardScreen role="business" onApproved={() => setApprovalStatus('approved')} />
+        </main>
+      </div>
+    );
+  }
+
+  // Rejected: show rejected screen inside dashboard layout
+  if (approvalStatus === 'rejected') {
+    return (
+      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+        <DashTopBar role="business" onGoHome={() => {}} />
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <RejectedDashboardScreen role="business" />
+        </main>
+      </div>
+    );
   }
 
   const goHome = () => setActiveTab('home');
