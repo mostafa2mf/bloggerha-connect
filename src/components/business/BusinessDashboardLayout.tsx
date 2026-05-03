@@ -9,12 +9,13 @@ import DashTopBar from '../dashboard/DashTopBar';
 import BizHome from './BizHome';
 import BizCampaigns from './BizCampaigns';
 import BizApplications from './BizApplications';
+import BizGuests from './BizGuests';
 import BizMessages from './BizMessages';
 import BizProfile from './BizProfile';
 import PendingApprovalScreen from '../shared/PendingApprovalScreen';
 import { Loader2 } from 'lucide-react';
 
-type BizTabId = 'home' | 'campaigns' | 'applications' | 'messages' | 'profile';
+type BizTabId = 'home' | 'campaigns' | 'applications' | 'guests' | 'messages' | 'profile';
 
 const BusinessDashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<BizTabId>('home');
@@ -80,6 +81,7 @@ const BusinessDashboardLayout = () => {
       case 'home': return <BizHome onNavigate={(tab) => setActiveTab(tab as BizTabId)} />;
       case 'campaigns': return <BizCampaigns onGoBack={goHome} />;
       case 'applications': return <BizApplications onGoBack={goHome} />;
+      case 'guests': return <BizGuests onGoBack={goHome} />;
       case 'messages': return <BizMessages onGoBack={goHome} />;
       case 'profile': return <BizProfile onGoBack={goHome} />;
     }
