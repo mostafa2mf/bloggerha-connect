@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { syncChatMessage, fetchAdminMessages } from '@/lib/adminSync';
-import { Send, Loader2, MessageCircle, Check, CheckCheck, Paperclip, Image, Video, Mic, X, AlertCircle, MicOff } from 'lucide-react';
+import { Send, Loader2, MessageCircle, Check, CheckCheck, Image, Mic, X, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateFile } from '@/lib/fileValidation';
 
 interface Message {
   id: string;
@@ -13,7 +14,7 @@ interface Message {
   content: string;
   is_read: boolean;
   created_at: string;
-  attachment_type?: 'image' | 'video' | 'voice' | null;
+  attachment_type?: 'image' | 'voice' | null;
   attachment_url?: string | null;
   status?: 'sending' | 'sent' | 'failed';
 }
@@ -30,22 +31,19 @@ const AdminChatPanel = ({ lang }: Props) => {
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [attachPreview, setAttachPreview] = useState<{ type: 'image' | 'video' | 'voice'; url: string; file: File } | null>(null);
+  const [attachPreview, setAttachPreview] = useState<{ type: 'image' | 'voice'; url: string; file: File } | null>(null);
   const [recording, setRecording] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (!user) return;
     fetchMessages();
-    // Poll for admin replies every 15s
     const interval = setInterval(() => {
       fetchAdminMessages(user.id).then(() => fetchMessages()).catch(console.error);
     }, 15000);
-    // Initial fetch of admin messages
     fetchAdminMessages(user.id).catch(console.error);
     return () => clearInterval(interval);
   }, [user]);
@@ -61,7 +59,6 @@ const AdminChatPanel = ({ lang }: Props) => {
       )
       .order('created_at', { ascending: true });
     setMessages((data as Message[]) || []);
-    // Mark as read
     await supabase
       .from('messages')
       .update({ is_read: true })
@@ -80,7 +77,10 @@ const AdminChatPanel = ({ lang }: Props) => {
         const msg = payload.new as Message;
         if ((msg.sender_id === ADMIN_ID && msg.receiver_id === user.id) ||
             (msg.sender_id === user.id && msg.receiver_id === ADMIN_ID)) {
-          setMessages(prev => [...prev, msg]);
+          setMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
           if (msg.receiver_id === user.id) {
             supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then(() => {});
           }
@@ -94,40 +94,68 @@ const AdminChatPanel = ({ lang }: Props) => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const uploadAttachment = async (file: File, type: 'image' | 'voice'): Promise<string | null> => {
+    if (!user) return null;
+    const ext = type === 'voice' ? 'webm' : file.name.split('.').pop();
+    const path = `chat/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from('profile-images').upload(path, file);
+    if (error) { console.error('Upload error:', error); return null; }
+    const { data: urlData } = supabase.storage.from('profile-images').getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const handleSend = async () => {
     if ((!newMsg.trim() && !attachPreview) || !user) return;
     setSending(true);
-    const content = newMsg.trim() || (attachPreview ? `[${attachPreview.type}]` : '');
-    const { error } = await supabase.from('messages').insert({
-      sender_id: user.id,
-      receiver_id: ADMIN_ID,
-      content,
-    });
-    setSending(false);
-    if (error) {
+    try {
+      let attachment_url: string | null = null;
+      let attachment_type: string | null = null;
+
+      if (attachPreview) {
+        attachment_url = await uploadAttachment(attachPreview.file, attachPreview.type);
+        attachment_type = attachPreview.type;
+      }
+
+      const content = newMsg.trim() || (attachment_type === 'image' ? '📷 تصویر' : attachment_type === 'voice' ? '🎙️ پیام صوتی' : '');
+
+      const { error } = await supabase.from('messages').insert({
+        sender_id: user.id,
+        receiver_id: ADMIN_ID,
+        content,
+        attachment_type,
+        attachment_url,
+      } as any);
+
+      if (error) throw error;
+
+      syncChatMessage({
+        sender_id: user.id,
+        sender_name: user.user_metadata?.username || user.email || 'User',
+        sender_role: user.user_metadata?.role === 'business' ? 'business' : 'influencer',
+        content,
+        attachment_type,
+        attachment_url,
+      }).catch(console.error);
+
+      setNewMsg('');
+      setAttachPreview(null);
+    } catch (err: any) {
       toast.error(lang === 'fa' ? 'خطا در ارسال پیام' : 'Failed to send');
-      return;
+    } finally {
+      setSending(false);
     }
-    // Sync to admin dashboard
-    syncChatMessage({
-      sender_id: user.id,
-      sender_name: user.user_metadata?.username || user.email || 'User',
-      sender_role: user.user_metadata?.role === 'business' ? 'business' : 'influencer',
-      content,
-    }).catch(console.error);
-    setNewMsg('');
-    setAttachPreview(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAttachPreview({ type, url: URL.createObjectURL(file), file });
-    }
+    if (!file) return;
+    const validation = validateFile(file, lang);
+    if (!validation.valid) { toast.error(validation.error); return; }
+    setAttachPreview({ type: 'image', url: URL.createObjectURL(file), file });
   };
 
   const startRecording = async () => {
@@ -177,6 +205,30 @@ const AdminChatPanel = ({ lang }: Props) => {
     }
   });
 
+  const renderMessageContent = (m: Message) => {
+    const isMine = m.sender_id === user?.id;
+    return (
+      <>
+        {m.attachment_type === 'image' && m.attachment_url && (
+          <img src={m.attachment_url} alt="" className="rounded-xl max-w-[200px] mb-1.5 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(m.attachment_url!, '_blank')} />
+        )}
+        {m.attachment_type === 'voice' && m.attachment_url && (
+          <audio controls src={m.attachment_url} className="max-w-[220px] mb-1" />
+        )}
+        {m.content && !(m.attachment_type && (m.content === '📷 تصویر' || m.content === '🎙️ پیام صوتی')) && (
+          <p className="whitespace-pre-wrap">{m.content}</p>
+        )}
+        <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : ''}`}>
+          <span className="text-[9px] opacity-60">{formatTime(m.created_at)}</span>
+          {isMine && (m.is_read
+            ? <CheckCheck size={10} className="opacity-70" />
+            : <Check size={10} className="opacity-50" />
+          )}
+        </div>
+      </>
+    );
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] rounded-3xl overflow-hidden glass">
       {/* Header */}
@@ -204,7 +256,7 @@ const AdminChatPanel = ({ lang }: Props) => {
             </div>
             <h3 className="text-base font-bold mb-1">{lang === 'fa' ? 'شروع گفتگو با ادمین' : 'Start a conversation'}</h3>
             <p className="text-xs text-muted-foreground max-w-xs">
-              {lang === 'fa' ? 'هر سوالی دارید، متن، تصویر، ویدیو یا پیام صوتی ارسال کنید' : 'Send text, images, videos or voice messages'}
+              {lang === 'fa' ? 'متن، تصویر یا پیام صوتی ارسال کنید' : 'Send text, images or voice messages'}
             </p>
           </div>
         ) : (
@@ -229,14 +281,7 @@ const AdminChatPanel = ({ lang }: Props) => {
                         ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-ee-sm'
                         : 'bg-muted/80 rounded-es-sm'
                     }`}>
-                      <p className="whitespace-pre-wrap">{m.content}</p>
-                      <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : ''}`}>
-                        <span className="text-[9px] opacity-60">{formatTime(m.created_at)}</span>
-                        {isMine && (m.is_read
-                          ? <CheckCheck size={10} className="opacity-70" />
-                          : <Check size={10} className="opacity-50" />
-                        )}
-                      </div>
+                      {renderMessageContent(m)}
                     </div>
                   </motion.div>
                 );
@@ -260,9 +305,6 @@ const AdminChatPanel = ({ lang }: Props) => {
               {attachPreview.type === 'image' && (
                 <img src={attachPreview.url} alt="" className="w-16 h-16 rounded-xl object-cover" />
               )}
-              {attachPreview.type === 'video' && (
-                <video src={attachPreview.url} className="w-20 h-16 rounded-xl object-cover" />
-              )}
               {attachPreview.type === 'voice' && (
                 <div className="flex items-center gap-2 glass rounded-xl px-3 py-2">
                   <Mic size={14} className="text-primary" />
@@ -280,13 +322,9 @@ const AdminChatPanel = ({ lang }: Props) => {
       {/* Input Bar */}
       <div className="p-4 border-t border-border/50">
         <div className="flex items-center gap-2">
-          {/* Attachment buttons */}
           <div className="flex items-center gap-1">
             <button onClick={() => fileRef.current?.click()} className="p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-primary transition-colors" title={lang === 'fa' ? 'تصویر' : 'Image'}>
               <Image size={18} />
-            </button>
-            <button onClick={() => videoRef.current?.click()} className="p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-primary transition-colors" title={lang === 'fa' ? 'ویدیو' : 'Video'}>
-              <Video size={18} />
             </button>
             <button
               onClick={recording ? stopRecording : startRecording}
@@ -315,9 +353,8 @@ const AdminChatPanel = ({ lang }: Props) => {
         </div>
       </div>
 
-      {/* Hidden file inputs */}
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'image')} />
-      <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, 'video')} />
+      {/* Hidden file input */}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
     </div>
   );
 };
