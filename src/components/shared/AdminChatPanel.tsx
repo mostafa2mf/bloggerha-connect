@@ -14,7 +14,7 @@ interface Message {
   content: string;
   is_read: boolean;
   created_at: string;
-  attachment_type?: 'image' | 'voice' | null;
+  attachment_type?: string | null;
   attachment_url?: string | null;
   status?: 'sending' | 'sent' | 'failed';
 }
@@ -24,6 +24,10 @@ interface Props {
 }
 
 const ADMIN_ID = '00000000-0000-0000-0000-000000000001';
+
+const dbg = (tag: string, ...args: unknown[]) => {
+  console.log(`[MSG:UserChat][${tag}]`, ...args);
+};
 
 const AdminChatPanel = ({ lang }: Props) => {
   const { user } = useAuth();
@@ -40,25 +44,35 @@ const AdminChatPanel = ({ lang }: Props) => {
 
   useEffect(() => {
     if (!user) return;
+    dbg('init', 'user.id=', user.id);
     fetchMessages();
     const interval = setInterval(() => {
-      fetchAdminMessages(user.id).then(() => fetchMessages()).catch(console.error);
+      fetchAdminMessages(user.id)
+        .then((res) => { dbg('poll-sync', res); return fetchMessages(); })
+        .catch((e) => dbg('poll-sync-err', e));
     }, 15000);
-    fetchAdminMessages(user.id).catch(console.error);
+    fetchAdminMessages(user.id).catch((e) => dbg('initial-sync-err', e));
     return () => clearInterval(interval);
   }, [user]);
 
   const fetchMessages = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    dbg('fetch', 'querying messages for user', user.id, 'admin', ADMIN_ID);
+    const { data, error } = await supabase
       .from('messages')
       .select('*')
       .or(
         `and(sender_id.eq.${user.id},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${user.id})`
       )
       .order('created_at', { ascending: true });
+    if (error) {
+      dbg('fetch-error', error.message, error.code, error.details);
+    } else {
+      dbg('fetch-ok', 'count=', data?.length);
+    }
     setMessages((data as Message[]) || []);
+    // mark admin msgs as read
     await supabase
       .from('messages')
       .update({ is_read: true })
@@ -75,6 +89,7 @@ const AdminChatPanel = ({ lang }: Props) => {
       .channel('admin-chat')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as Message;
+        dbg('realtime', 'new msg', msg.id, 'sender=', msg.sender_id, 'receiver=', msg.receiver_id);
         if ((msg.sender_id === ADMIN_ID && msg.receiver_id === user.id) ||
             (msg.sender_id === user.id && msg.receiver_id === ADMIN_ID)) {
           setMessages(prev => {
@@ -99,7 +114,7 @@ const AdminChatPanel = ({ lang }: Props) => {
     const ext = type === 'voice' ? 'webm' : file.name.split('.').pop();
     const path = `chat/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error } = await supabase.storage.from('profile-images').upload(path, file);
-    if (error) { console.error('Upload error:', error); return null; }
+    if (error) { dbg('upload-err', error); return null; }
     const { data: urlData } = supabase.storage.from('profile-images').getPublicUrl(path);
     return urlData.publicUrl;
   };
@@ -114,19 +129,27 @@ const AdminChatPanel = ({ lang }: Props) => {
       if (attachPreview) {
         attachment_url = await uploadAttachment(attachPreview.file, attachPreview.type);
         attachment_type = attachPreview.type;
+        dbg('send-attach', attachment_type, attachment_url ? 'uploaded' : 'failed');
       }
 
       const content = newMsg.trim() || (attachment_type === 'image' ? '📷 تصویر' : attachment_type === 'voice' ? '🎙️ پیام صوتی' : '');
 
-      const { error } = await supabase.from('messages').insert({
+      const insertPayload = {
         sender_id: user.id,
         receiver_id: ADMIN_ID,
         content,
         attachment_type,
         attachment_url,
-      } as any);
+      };
+      dbg('send', 'inserting', insertPayload);
 
-      if (error) throw error;
+      const { error } = await supabase.from('messages').insert(insertPayload);
+
+      if (error) {
+        dbg('send-error', error.message, error.code, error.details, error.hint);
+        throw error;
+      }
+      dbg('send-ok', 'message inserted');
 
       syncChatMessage({
         sender_id: user.id,
@@ -135,11 +158,12 @@ const AdminChatPanel = ({ lang }: Props) => {
         content,
         attachment_type,
         attachment_url,
-      }).catch(console.error);
+      }).then(r => dbg('sync-ok', r)).catch(e => dbg('sync-err', e));
 
       setNewMsg('');
       setAttachPreview(null);
     } catch (err: any) {
+      dbg('send-catch', err);
       toast.error(lang === 'fa' ? 'خطا در ارسال پیام' : 'Failed to send');
     } finally {
       setSending(false);
