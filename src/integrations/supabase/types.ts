@@ -168,6 +168,8 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachment_type: string | null
+          attachment_url: string | null
           campaign_id: string | null
           content: string
           created_at: string
@@ -178,6 +180,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           campaign_id?: string | null
           content: string
           created_at?: string
@@ -188,6 +192,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           campaign_id?: string | null
           content?: string
           created_at?: string
