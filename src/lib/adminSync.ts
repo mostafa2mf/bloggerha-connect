@@ -64,3 +64,15 @@ export const syncChatMessage = (msg: Record<string, any>) =>
 /** Fetch admin replies */
 export const fetchAdminMessages = (userId: string) =>
   callAdminSync("fetch_admin_messages", { user_id: userId });
+
+/** Fetch conversations visible in admin dashboard */
+export const fetchAdminConversations = () =>
+  callAdminSync("fetch_admin_conversations", {});
+
+/** Fetch a single admin conversation by participant */
+export const fetchAdminConversationMessages = (userId: string) =>
+  callAdminSync("fetch_admin_conversation_messages", { user_id: userId });
+
+/** Send an admin reply and mirror it back into the app inbox */
+export const sendAdminReply = (userId: string, content: string) =>
+  callAdminSync("admin_send_message", { user_id: userId, content });
