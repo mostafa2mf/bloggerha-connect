@@ -393,12 +393,13 @@ const AdminChatPanel = ({ lang, chatLabel }: Props) => {
       <div className="p-4 border-t border-border/50">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <button onClick={() => fileRef.current?.click()} className="p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-primary transition-colors" title={lang === 'fa' ? 'تصویر' : 'Image'}>
+            <button onClick={() => fileRef.current?.click()} disabled={!canSendMessages} className="p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title={lang === 'fa' ? 'تصویر' : 'Image'}>
               <Image size={18} />
             </button>
             <button
               onClick={recording ? stopRecording : startRecording}
-              className={`p-2 rounded-xl transition-colors ${recording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-muted/50 text-muted-foreground hover:text-primary'}`}
+              disabled={!canSendMessages}
+              className={`p-2 rounded-xl transition-colors disabled:opacity-50 ${recording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-muted/50 text-muted-foreground hover:text-primary'}`}
               title={lang === 'fa' ? 'صدا' : 'Voice'}
             >
               {recording ? <MicOff size={18} /> : <Mic size={18} />}
