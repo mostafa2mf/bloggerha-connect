@@ -480,6 +480,7 @@ export type Database = {
       }
     }
     Functions: {
+      get_admin_user_id: { Args: never; Returns: string }
       get_public_profile: {
         Args: { _user_id: string }
         Returns: {
