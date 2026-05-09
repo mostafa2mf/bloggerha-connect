@@ -43,20 +43,15 @@ const AdminChatPanel = ({ lang, chatLabel }: Props) => {
   // Step 1: Resolve the real admin user_id
   useEffect(() => {
     (async () => {
-      dbg('resolve-admin', 'looking up admin user...');
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .eq('role', 'admin')
-        .limit(1)
-        .maybeSingle();
+      dbg('resolve-admin', 'calling get_admin_user_id rpc...');
+      const { data, error } = await supabase.rpc('get_admin_user_id');
       if (error) {
         dbg('resolve-admin-err', error.message);
       } else if (data) {
-        dbg('resolve-admin-ok', data.user_id);
-        setAdminId(data.user_id);
+        dbg('resolve-admin-ok', data);
+        setAdminId(data as string);
       } else {
-        dbg('resolve-admin', 'no admin found in profiles');
+        dbg('resolve-admin', 'no admin found');
       }
     })();
   }, []);
