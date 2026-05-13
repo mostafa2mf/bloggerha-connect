@@ -177,13 +177,16 @@ const PendingByEmailScreen = forwardRef<HTMLDivElement, Props>(({ email, initial
     } catch (_) {}
 
     const timer = window.setTimeout(() => {
+      console.info('[AuthRedirect] approved redirect', { hasSession: !!user, role: profile.role, dashboardPath });
       if (user) {
         logEventSync({ action: 'redirect.to_dashboard', details: { role: profile.role, path: dashboardPath, source: 'PendingByEmailScreen' } });
         navigate(dashboardPath, { replace: true });
       } else {
+        // No session: user must log in. Send to landing with a flag that auto-opens the login modal.
         logEventSync({ action: 'redirect.to_landing', details: { reason: 'approved_but_logged_out', role: profile.role } });
+        toast.success(isEn ? 'Approved! Please log in to access your dashboard.' : 'تأیید شد! برای ورود به داشبورد، وارد حساب خود شوید.');
         onReset?.();
-        navigate('/', { replace: true });
+        navigate(`/?login=${profile.role === 'business' ? 'business' : 'blogger'}`, { replace: true });
       }
     }, 1200);
 
