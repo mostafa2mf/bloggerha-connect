@@ -43,15 +43,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!nextSession?.user) {
         setUserRole(null);
         setLoading(false);
+        console.info('[AuthRedirect] no session', { loading: false });
         return;
       }
 
-      setLoading(true);
       const role = await fetchUserRole(nextSession.user.id);
       if (!isMounted) return;
 
       setUserRole(role);
       setLoading(false);
+      console.info('[AuthRedirect] session ready', { userId: nextSession.user.id, role });
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
