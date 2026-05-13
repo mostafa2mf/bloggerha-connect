@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Users, Briefcase, User, ArrowLeft, ArrowRight } from 'lucide-react';
 import AnimatedCounter from './AnimatedCounter';
 import UserLoginModal from './UserLoginModal';
@@ -10,6 +10,20 @@ const Hero = () => {
   const { t, lang } = useLanguage();
   const Arrow = lang === 'fa' ? ArrowLeft : ArrowRight;
   const [userModalOpen, setUserModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open the login modal when redirected with ?login=blogger|business
+  useEffect(() => {
+    const loginParam = searchParams.get('login');
+    if (loginParam === 'blogger' || loginParam === 'business') {
+      console.info('[AuthRedirect] auto-open login modal', { loginParam });
+      setUserModalOpen(true);
+      // Clean the URL so refreshing doesn't reopen it.
+      const next = new URLSearchParams(searchParams);
+      next.delete('login');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
